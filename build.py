@@ -19,7 +19,7 @@ SITE = DIST / "site"
 index = (WEB / "index.html").read_text(encoding="utf-8")
 css = (WEB / "app.css").read_text(encoding="utf-8")
 js = (WEB / "app.js").read_text(encoding="utf-8")
-levels = (WEB / "levels.js").read_text(encoding="utf-8")
+levels = (WEB / "levels.js").read_text(encoding="utf-8") + "\n" + (WEB / "sayings.js").read_text(encoding="utf-8")
 body = index.split("<!--BODY-->")[1].split("<!--/BODY-->")[0]
 fonts = re.search(r'<link href="(https://fonts\.googleapis\.com/[^"]+)"', index).group(1)
 

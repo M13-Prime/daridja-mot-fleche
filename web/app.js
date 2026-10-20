@@ -16,24 +16,38 @@
     ["Timimoun", "L'oasis rouge"], ["Taghit", "Les dunes de la Saoura"], ["El Kala", "Les lacs et la forêt"],
     ["Tamanrasset", "Les portes du Hoggar"], ["Djanet", "Les fresques du Tassili"], ["Assekrem", "Le lever du soleil sur le Hoggar"],
   ];
-  const PROVERBS = [
-    ["Elli fat mat", "اللي فات مات", "Ce qui est passé est mort : on regarde devant."],
-    ["Lyed wa7da ma tsaffaqch", "اليد وحدة ما تصفقش", "Une seule main n'applaudit pas."],
-    ["Qatra qatra ysil lwad", "قطرة قطرة يسيل الواد", "Goutte après goutte, la rivière finit par couler."],
-    ["Kima tezra3 te7ssed", "كيما تزرع تحصد", "On récolte ce qu'on a semé."],
-    ["Elli bgha l3sel ysber lqris n7al", "اللي بغا العسل يصبر لقريص النحل", "Qui veut le miel supporte les piqûres des abeilles."],
-    ["Koul khanfous 3and yemmah ghzal", "كل خنفوس عند يماه غزال", "Aux yeux de sa mère, chaque scarabée est une gazelle."],
-    ["Ejjar qbel eddar", "الجار قبل الدار", "Choisis le voisin avant la maison."],
-    ["Dir el khir w ensah", "دير الخير وانساه", "Fais le bien et oublie-le."],
-    ["Sbar tnal", "اصبر تنال", "Sois patient et tu obtiendras ce que tu veux."],
-    ["El 3qal zina", "العقل زينة", "La sagesse est une parure."],
-    ["Ma ta3ref khirou 7atta tjarreb ghirou", "ما تعرف خيرو حتى تجرب غيرو", "On ne connaît la valeur de quelqu'un qu'après en avoir essayé un autre."],
-    ["Zid el ma zid eddqiq", "زيد الما زيد الدقيق", "Plus d'eau, plus de farine : chaque solution demande un ajustement."],
-  ];
+  // ---------- Dictons : répétition espacée ----------
+  // Un dicton nouveau revient 4, 12, 30 puis 70 victoires plus tard : assez pour s'en souvenir,
+  // pas assez pour s'en lasser. Les trois familles alternent pour varier.
+  const SAYINGS = Array.isArray(window.SAYINGS) ? window.SAYINGS : [];
+  const KIND_LABEL = { proverbe: "Proverbe", rue: "Expression de la rue", rai: "Raï & chaâbi" };
+  const REVIEW_GAPS = [4, 12, 30, 70];
+  const SCHEDULE = (() => {
+    const byKind = {};
+    SAYINGS.forEach((x, i) => (byKind[x.k] = byKind[x.k] || []).push(i));
+    const order = [];
+    const kinds = Object.keys(byKind);
+    for (let r = 0; order.length < SAYINGS.length; r++) kinds.forEach((k) => { if (byKind[k][r] !== undefined) order.push(byKind[k][r]); });
+    const due = {}, pending = [], last = {}, seq = [];
+    let next = 0;
+    for (let step = 0; step < 2000 && SAYINGS.length; step++) {
+      (due[step] || []).forEach((i) => pending.push(i));
+      let id;
+      if (pending.length) id = pending.shift();
+      else if (next < order.length) {
+        id = order[next++];
+        REVIEW_GAPS.forEach((g) => (due[step + g] = due[step + g] || []).push(id));
+      } else id = order.reduce((a, b) => ((last[a] ?? -1) <= (last[b] ?? -1) ? a : b)); // révision du plus ancien
+      last[id] = step;
+      seq.push(id);
+    }
+    return seq;
+  })();
 
   // ---------- Sauvegarde (dans le navigateur du téléphone) ----------
   const STORE_KEY = "daridja-v2";
-  const blank = () => ({ xp: 0, theme: "auto", streak: { count: 0, last: "" }, modes: { latin: { stars: {} }, arabic: { stars: {} } } });
+  const blank = () => ({ xp: 0, theme: "auto", streak: { count: 0, last: "" }, sayStep: 0, seenSay: {},
+                         modes: { latin: { stars: {} }, arabic: { stars: {} } } });
   let store = blank();
   try {
     const raw = localStorage.getItem(STORE_KEY);
@@ -68,7 +82,7 @@
   });
 
   // ---------- Vues ----------
-  function show(view) { ["home", "map", "game", "gallery"].forEach((v) => { $(v).hidden = v !== view; }); }
+  function show(view) { ["home", "map", "game", "gallery", "carnet"].forEach((v) => { $(v).hidden = v !== view; }); }
 
   function renderHome() {
     $("statXp").textContent = store.xp;
@@ -82,6 +96,11 @@
         ? `Niveau ${frontier(m)} sur ${total} · ${chapterOf(frontier(m))[0]}`
         : `${total} niveaux, du plus simple au plus corsé`;
     });
+    const learned = Object.keys(store.seenSay).length;
+    $("barSay").style.width = `${SAYINGS.length ? (learned / SAYINGS.length) * 100 : 0}%`;
+    $("lvlSay").textContent = learned
+      ? `${learned} dicton${learned > 1 ? "s" : ""} rencontré${learned > 1 ? "s" : ""} sur ${SAYINGS.length}`
+      : `${SAYINGS.length} dictons à découvrir en jouant`;
     const g = unlockedGifts();
     $("barGift").style.width = `${(g / GIFT_TOTAL) * 100}%`;
     $("lvlGift").textContent = `${g} photo${g > 1 ? "s" : ""} sur ${GIFT_TOTAL} · la prochaine dans ${levelsBeforeGift()} niveau${levelsBeforeGift() > 1 ? "x" : ""}`;
@@ -452,7 +471,22 @@
     const newGift = unlockedGifts() > giftsBefore ? unlockedGifts() - 1 : -1;
     L.cells.forEach((row, r) => row.forEach((cell, c) => { if (cell.t === "L") cellEl[key(r, c)].classList.add("good"); }));
 
-    const p = PROVERBS[(n - 1) % PROVERBS.length];
+    let sayingHtml = "";
+    if (SCHEDULE.length) {
+      const id = SCHEDULE[store.sayStep % SCHEDULE.length];
+      const x = SAYINGS[id];
+      const seen = store.seenSay[id] || 0;
+      store.seenSay[id] = seen + 1;
+      store.sayStep++;
+      save();
+      const tag = seen ? `À revoir · ${seen + 1}ᵉ fois` : "Nouveau";
+      sayingHtml = `<div class="reward ${x.k}">
+          <span class="kicker">${KIND_LABEL[x.k]} · <b>${tag}</b></span>
+          <span class="dz">${x.dz}</span>
+          <span class="dz" dir="rtl" lang="ar">${x.ar}</span>
+          <span class="fr">${x.fr}</span>
+        </div>`;
+    }
     const chapterEnd = n % PER_CHAPTER === 0;
     const recap = L.words.map((w) => rtl
       ? `<span class="chip"><b lang="ar">${w.ar}</b> · ${w.latin} · ${w.clue}</span>`
@@ -473,12 +507,7 @@
         <div class="bigstars" aria-label="${stars} étoiles sur 3">${[1, 2, 3].map((i) => `<span class="${i <= stars ? "on" : ""}">★</span>`).join("")}</div>
         <p class="xp">${gained ? `+${gained} XP` : "Tu avais déjà fait mieux sur ce niveau"}</p>
         ${giftBlock}
-        <div class="reward">
-          <span class="kicker">Un proverbe pour la route</span>
-          <span class="dz">${p[0]}</span>
-          <span class="dz" dir="rtl" lang="ar">${p[1]}</span>
-          <span class="fr">${p[2]}</span>
-        </div>
+        ${sayingHtml}
         <div class="recap">${recap}</div>
         <div class="buttons">
           <button class="btn" id="toMap">Carte</button>
@@ -489,6 +518,26 @@
       $("toNext").onclick = () => { closeSheet(); last ? renderMap() : startLevel(n + 1); };
       confetti(newGift >= 0);
     }, 450);
+  }
+
+  // ---------- Carnet de dictons ----------
+  function renderCarnet() {
+    const seen = SAYINGS.map((x, i) => ({ ...x, i, n: store.seenSay[i] || 0 })).filter((x) => x.n);
+    $("carnetSub").textContent = `${seen.length} sur ${SAYINGS.length} · ils reviennent tout seuls au fil des niveaux`;
+    const list = $("carnetList");
+    list.innerHTML = seen.length ? "" : '<p class="empty">Gagne un niveau pour découvrir ton premier dicton.</p>';
+    ["proverbe", "rue", "rai"].forEach((k) => {
+      const items = seen.filter((x) => x.k === k);
+      if (!items.length) return;
+      list.insertAdjacentHTML("beforeend", `<h3 class="carnet-h">${KIND_LABEL[k]}</h3>` + items.map((x) => `
+        <div class="reward ${k}">
+          <span class="dz">${x.dz}</span>
+          <span class="dz" dir="rtl" lang="ar">${x.ar}</span>
+          <span class="fr">${x.fr}</span>
+          <span class="kicker">Vu ${x.n} fois</span>
+        </div>`).join(""));
+    });
+    show("carnet");
   }
 
   // ---------- Galerie ----------
@@ -601,6 +650,8 @@
   // ---------- Branchements ----------
   document.querySelectorAll(".card[data-mode]").forEach((b) => { b.onclick = () => { mode = b.dataset.mode; renderMap(); }; });
   $("openGallery").onclick = renderGallery;
+  $("openCarnet").onclick = renderCarnet;
+  $("carnetBack").onclick = renderHome;
   $("mapBack").onclick = renderHome;
   $("galleryBack").onclick = renderHome;
   $("gameBack").onclick = () => { kbInput.blur(); renderMap(); };

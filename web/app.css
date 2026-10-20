@@ -177,6 +177,14 @@ button:focus-visible, .node:focus-visible, .card:focus-visible { outline: 3px so
 body.kb-open #game { padding-bottom: 0; }
 body.kb-open .boardwrap { padding-block: 4px; }
 
+/* ---------- Carnet ---------- */
+#carnetList { flex: 1; min-height: 0; display: grid; gap: 10px; align-content: start; padding-bottom: 16px; }
+.carnet-h { font-family: var(--font-display); font-size: 18px; margin: 10px 0 0; color: var(--sea); }
+#carnetList .empty { color: var(--muted); text-align: center; margin-top: 40px; }
+.reward.rue { background: var(--mint-soft); }
+.reward.rai { background: var(--gift-soft); }
+.reward .kicker b { color: var(--sea); }
+
 /* ---------- Galerie ---------- */
 #gallery { padding-bottom: 12px; }
 #galleryGrid { flex: 1; min-height: 0; padding-bottom: 12px; }

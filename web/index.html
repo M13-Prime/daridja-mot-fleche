@@ -51,6 +51,13 @@
   </div>
   <p class="section-label">Tes cadeaux</p>
   <div class="cards">
+    <button class="card" id="openCarnet">
+      <h2>Carnet de dictons</h2>
+      <span class="sample">Proverbes, rue, raï et chaâbi</span>
+      <span class="go" aria-hidden="true">›</span>
+      <div class="bar"><i id="barSay"></i></div>
+      <span class="lvl" id="lvlSay"></span>
+    </button>
     <button class="card gift" id="openGallery">
       <h2>Galerie</h2>
       <span class="sample" id="giftSample">Une photo tous les 3 niveaux</span>
@@ -99,6 +106,14 @@
   <div id="galleryGrid" class="scrollable"></div>
 </section>
 
+<section id="carnet" class="view" hidden>
+  <div class="topbar">
+    <button class="iconbtn" id="carnetBack" aria-label="Retour à l'accueil">‹</button>
+    <h2>Carnet de dictons<small id="carnetSub"></small></h2>
+  </div>
+  <div id="carnetList" class="scrollable"></div>
+</section>
+
 <div class="scrim" id="scrim" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
 <div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Photo">
   <div class="lbtop"><span id="lbCount"></span><button id="lbClose" aria-label="Fermer">×</button></div>
@@ -108,6 +123,7 @@
 <canvas id="confetti" hidden></canvas>
 <!--/BODY-->
 <script src="levels.js"></script>
+<script src="sayings.js"></script>
 <script src="photos/manifest.js"></script>
 <script src="app.js"></script>
 </body>
