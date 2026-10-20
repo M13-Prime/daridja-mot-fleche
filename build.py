@@ -59,8 +59,9 @@ def main():
         shutil.rmtree(SITE)
     SITE.mkdir(parents=True)
     (SITE / "index.html").write_text(site_index(), encoding="utf-8")
-    icon(180).save(SITE / "icon-180.png")
-    icon(512).save(SITE / "icon-512.png")
+    # Icônes déjà dessinées dans web/ (pour les refaire : python3 -c "import build; build.icon(512).save('web/icon-512.png')")
+    for name in ("icon-180.png", "icon-512.png"):
+        shutil.copy(WEB / name, SITE / name)
     (SITE / "manifest.webmanifest").write_text(json.dumps({
         "name": "Daridja Mots Fléchés", "short_name": "Daridja", "start_url": "./", "display": "standalone",
         "background_color": "#f6f8fc", "theme_color": "#3d7fd9", "lang": "fr",
