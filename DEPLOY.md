@@ -48,7 +48,22 @@ Depuis Cloud Shell :
 TUNNEL=1 DOMAIN=alice-daridja.fr VM=signal-tracker ZONE=us-central1-a ./deploy/deploy.sh
 ```
 
-Puis, une seule fois, brancher le domaine sur le tunnel : Zero Trust → Networks → Tunnels → le tunnel de signal-tracker → **Public Hostname** → *Add a public hostname*, deux fois :
+Puis, une seule fois, brancher le domaine sur le tunnel.
+
+**Tunnel géré localement** (cas de signal-tracker, la page du tunnel indique « managed locally ») :
+
+```bash
+DOMAIN=alice-daridja.fr VM=signal-tracker ZONE=us-central1-a ./deploy/tunnel-route.sh
+```
+
+Le script ajoute les deux noms dans `config.yml` sur la VM (sauvegarde, validation par cloudflared, retour arrière si erreur), puis redémarre le tunnel. Ensuite, dans Cloudflare → alice-daridja.fr → DNS, deux enregistrements proxifiés (nuage orange) :
+
+| Type | Nom | Cible |
+|---|---|---|
+| CNAME | `@` | `5ab1fa74-7d81-4f8f-a4bb-05c220f8df95.cfargotunnel.com` |
+| CNAME | `www` | `5ab1fa74-7d81-4f8f-a4bb-05c220f8df95.cfargotunnel.com` |
+
+**Tunnel géré depuis le tableau de bord** : Zero Trust → Networks → Tunnels → le tunnel de signal-tracker → **Public Hostname** → *Add a public hostname*, deux fois :
 
 | Subdomain | Domain | Service |
 |---|---|---|
