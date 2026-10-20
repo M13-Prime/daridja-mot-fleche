@@ -9,6 +9,7 @@ Produit web/levels.js : 252 niveaux en lettres latines, 252 en lettres arabes.
 import argparse
 import json
 import random
+from collections import Counter, deque
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -142,11 +143,15 @@ class Grid:
         return out
 
 
-def build(words, rows, cols, weights, rng):
-    pool = [w for w in words if w["tier"] in weights and 2 <= len(w["word"]) <= max(rows, cols) - 1]
+def build(words, rows, cols, weights, rng, uses, banned):
+    """Remplit une grille. Les mots des niveaux précédents sont exclus (banned), et plus un mot
+    a déjà servi (uses), moins il a de chances d'être choisi : la grille privilégie le neuf."""
+    pool = [w for w in words if w["tier"] in weights and w["word"] not in banned
+            and 2 <= len(w["word"]) <= max(rows, cols) - 1]
+    fresh = {w["word"]: 1 / (1 + 0.8 * uses[w["word"]]) for w in pool}
     g = Grid(rows, cols)
-    first_choices = [w for w in pool if len(w["word"]) >= cols - 3]
-    first = rng.choice(first_choices or pool)
+    first_choices = [w for w in pool if len(w["word"]) >= cols - 3] or pool
+    first = rng.choices(first_choices, weights=[fresh[w["word"]] * weights[w["tier"]] for w in first_choices])[0]
     d = rng.choice(["right", "down"])
     if d == "right":
         g.place(first, rng.randrange(1, rows - 1), 1, d)
@@ -158,7 +163,7 @@ def build(words, rows, cols, weights, rng):
         for entry in pool:
             if entry["word"] in used:
                 continue
-            w = weights[entry["tier"]]
+            w = weights[entry["tier"]] * fresh[entry["word"]]
             for r, c, d, x in g.candidates(entry):
                 score = (x * 3 + len(entry["word"])) * w + rng.random() * 2
                 best.append((score, entry, r, c, d))
@@ -171,11 +176,12 @@ def build(words, rows, cols, weights, rng):
     return g
 
 
-def generate(words, size, weights, rng, attempts=25):
-    best, best_score = None, -1
+def generate(words, size, weights, rng, uses, banned, attempts=20):
+    best, best_score = None, -1e9
     for _ in range(attempts):
-        g = build(words, size, size, weights, rng)
-        score = g.letters() + 2 * len(g.words)
+        g = build(words, size, size, weights, rng, uses, banned)
+        repeats = sum(1 for w in g.words if uses[w["word"]])
+        score = g.letters() + 2 * len(g.words) - 3 * repeats
         if score > best_score:
             best, best_score = g, score
     return best
@@ -194,11 +200,21 @@ def main():
             ans = w[field]
             if ans not in seen:
                 seen.add(ans)
-                words.append({"word": ans, "clue": w["clue"], "tier": w["tier"], "latin": w["word"], "ar": w["ar"]})
+                words.append({"word": ans, "clue": w["clue"], "alt": w.get("alt", []), "tier": w["tier"],
+                              "latin": w["word"], "ar": w["ar"]})
         levels = []
+        uses = Counter()
+        recent = deque(maxlen=4)  # mots des 4 derniers niveaux : interdits dans le suivant
         for n in range(1, N_LEVELS + 1):
             size, weights = level_config(n)
-            g = generate(words, size, weights, rng)
+            banned = set().union(*recent) if recent else set()
+            g = generate(words, size, weights, rng, uses, banned)
+            # Un mot qui revient change de définition : la principale, puis les variantes à tour de rôle.
+            for w in g.words:
+                variants = [w["clue"]] + w["alt"]
+                w["clue"] = variants[uses[w["word"]] % len(variants)]
+                uses[w["word"]] += 1
+            recent.append({w["word"] for w in g.words})
             # Format compact : la grille se déduit des mots (case définition juste avant chaque mot).
             levels.append({"n": n, "s": size, "w": [
                 [w["word"], w["clue"], w["latin"], w["ar"], w["r"], w["c"], 0 if w["dir"] == "right" else 1]
@@ -206,6 +222,8 @@ def main():
             if n % 25 == 1:
                 print(f"{mode} {n:>3}: {size}×{size}, {len(g.words)} mots", flush=True)
         out[mode] = levels
+        print(f"{mode} : {len(uses)} mots différents sur {len(words)}, chaque mot revient au plus {max(uses.values())} fois",
+              flush=True)
     dest = ROOT / "web" / "levels.js"
     dest.write_text("window.LEVELS = " + json.dumps(out, ensure_ascii=False, separators=(",", ":")) + ";\n", encoding="utf-8")
     print(f"→ {dest.relative_to(ROOT)}")
