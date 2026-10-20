@@ -124,7 +124,6 @@ button:focus-visible, .node:focus-visible, .card:focus-visible { outline: 3px so
 @keyframes pulse { from { transform: scale(.9); opacity: .7; } to { transform: scale(1.25); opacity: 0; } }
 
 /* ---------- Jeu ---------- */
-#game { padding-bottom: 0; }
 .cluebar {
   display: flex; align-items: center; gap: 10px; background: var(--surface); border-radius: 16px; padding: 8px 12px;
   box-shadow: var(--shadow); min-height: 50px;
@@ -169,25 +168,14 @@ button:focus-visible, .node:focus-visible, .card:focus-visible { outline: 3px so
 .btn:disabled { opacity: .45; cursor: default; }
 .btn .count { font-size: 12px; opacity: .75; font-variant-numeric: tabular-nums; }
 
-/* Clavier façon iOS : touches de 44 pt mini en hauteur, réaction au toucher, bulle au-dessus de la touche. */
-.kb {
-  display: grid; gap: 7px; margin-inline: -12px; padding: 8px 4px calc(6px + env(safe-area-inset-bottom, 0px));
-  background: var(--block); border-radius: 18px 18px 0 0;
+/* Champ invisible qui reçoit le clavier de l'iPhone. 16 px minimum, sinon Safari zoome sur la page. */
+#kbInput {
+  position: fixed; top: 30%; left: 0; width: 1px; height: 1px; opacity: 0; border: 0; padding: 0;
+  font-size: 16px; caret-color: transparent; background: transparent; color: transparent; pointer-events: none;
 }
-.kb .row { display: flex; gap: 5px; justify-content: center; }
-.key {
-  position: relative; flex: 1 1 0; max-width: 40px; height: 46px; border-radius: 8px; background: var(--key);
-  box-shadow: 0 1.5px 0 var(--key-edge); font-family: var(--font-display); font-size: 21px; font-weight: 600;
-  display: grid; place-items: center; padding: 0; color: var(--ink);
-}
-.key.wide { flex-grow: 1.5; max-width: 62px; font-size: 18px; background: var(--grid); }
-.key.down { background: var(--sea-soft); }
-.key.down:not(.wide)::after {
-  content: attr(data-ch); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 4px;
-  width: 46px; height: 52px; border-radius: 10px; background: var(--key); box-shadow: var(--shadow), 0 0 0 1px var(--key-edge);
-  display: grid; place-items: center; font-size: 30px; pointer-events: none; z-index: 2;
-}
-.kb.ar .key { font-size: 22px; }
+#game { padding-bottom: env(safe-area-inset-bottom, 0px); }
+body.kb-open #game { padding-bottom: 0; }
+body.kb-open .boardwrap { padding-block: 4px; }
 
 /* ---------- Galerie ---------- */
 #gallery { padding-bottom: 12px; }
@@ -259,7 +247,6 @@ button:focus-visible, .node:focus-visible, .card:focus-visible { outline: 3px so
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 @media (max-height: 700px) {
-  .key { height: 42px; }
   .cluebar { min-height: 44px; padding-block: 5px; }
   #home { gap: 14px; }
 }

@@ -30,10 +30,6 @@
     ["Ma ta3ref khirou 7atta tjarreb ghirou", "ما تعرف خيرو حتى تجرب غيرو", "On ne connaît la valeur de quelqu'un qu'après en avoir essayé un autre."],
     ["Zid el ma zid eddqiq", "زيد الما زيد الدقيق", "Plus d'eau, plus de farine : chaque solution demande un ajustement."],
   ];
-  const KEYBOARDS = {
-    latin: ["azertyuiop", "qsdfghjklm", ["3", "7", "w", "x", "c", "v", "b", "n", "⌫"]],
-    arabic: ["ضصقفغعهخحج", "شسيبلاتنمكط", ["ذ", "ث", "ر", "ى", "ة", "و", "ز", "ظ", "د", "ء", "⌫"]],
-  };
 
   // ---------- Sauvegarde (dans le navigateur du téléphone) ----------
   const STORE_KEY = "daridja-v2";
@@ -197,7 +193,7 @@
     $("xpPill").textContent = `${store.xp} XP`;
     $("btnHint").disabled = true;
     $("hintCount").textContent = hintsLeft;
-    renderKeyboard();
+    $("kbInput").blur();
     renderBoard();
     show("game");
     fitBoard();
@@ -223,16 +219,18 @@
           s.className = `clue ${d}`;
           s.textContent = cell.clues[d];
           s.dataset.r = r; s.dataset.c = c; s.dataset.d = d;
-          s.onclick = () => (d === "right" ? select(r, c + 1, d) : select(r + 1, c, d));
+          s.onclick = () => { d === "right" ? select(r, c + 1, d) : select(r + 1, c, d); openKeyboard(); };
           el.appendChild(s);
         });
       } else if (cell.t === "L") {
         el.setAttribute("role", "gridcell");
         el.onclick = () => {
-          if (sel && sel.r === r && sel.c === c) {
+          // Premier toucher : ouvre le clavier. Toucher à nouveau la case choisie : change de sens.
+          if (sel && sel.r === r && sel.c === c && keyboardOpen()) {
             const other = sel.dir === "right" ? "down" : "right";
             if (wordAt(r, c, other)) select(r, c, other);
           } else select(r, c, sel ? sel.dir : "right");
+          openKeyboard();
         };
         cellEl[key(r, c)] = el;
       }
@@ -295,48 +293,83 @@
     setEntry(sel.r, sel.c, "");
   }
 
-  // Clavier à l'écran : réagit dès que le doigt touche (pointerdown), sans délai ni zoom sur iPhone.
-  function renderKeyboard() {
-    const kb = $("kb");
-    kb.className = `kb ${rtl ? "ar" : ""}`;
-    kb.setAttribute("dir", rtl ? "rtl" : "ltr");
-    kb.innerHTML = "";
-    KEYBOARDS[mode].forEach((row) => {
-      const div = document.createElement("div");
-      div.className = "row";
-      [...row].forEach((ch) => {
-        const b = document.createElement("button");
-        b.className = "key" + (ch === "⌫" ? " wide" : "");
-        b.textContent = ch;
-        b.dataset.ch = ch;
-        b.setAttribute("aria-label", ch === "⌫" ? "Effacer la lettre" : ch);
-        div.appendChild(b);
-      });
-      kb.appendChild(div);
-    });
+  // ---------- Clavier de l'iPhone ----------
+  // Un champ invisible reçoit la frappe. Il contient toujours une espace « témoin » :
+  // si elle disparaît, c'est que la touche effacer a été pressée (l'iPhone n'envoie rien d'autre).
+  const kbInput = $("kbInput");
+  const SENTINEL = " ";
+  let composing = false;
+  let warned = false;
+  const keyboardOpen = () => document.activeElement === kbInput;
+  function resetInput() { kbInput.value = SENTINEL; try { kbInput.setSelectionRange(1, 1); } catch (e) {} }
+  function openKeyboard() {
+    kbInput.lang = rtl ? "ar" : "fr";
+    kbInput.dir = rtl ? "rtl" : "ltr";
+    resetInput();
+    kbInput.focus({ preventScroll: true });
   }
-  let repeatTimer = null;
-  const release = () => {
-    clearTimeout(repeatTimer); clearInterval(repeatTimer); repeatTimer = null;
-    document.querySelectorAll(".key.down").forEach((k) => k.classList.remove("down"));
-  };
-  $("kb").addEventListener("pointerdown", (e) => {
-    const k = e.target.closest(".key");
-    if (!k) return;
-    e.preventDefault();
-    release();
-    k.classList.add("down");
-    type(k.dataset.ch);
-    if (k.dataset.ch === "⌫") repeatTimer = setTimeout(() => { repeatTimer = setInterval(() => type("⌫"), 90); }, 450);
+
+  // Ramène ce que tape l'iPhone aux lettres de la grille : minuscules, sans accents, sans voyelles arabes.
+  function normalize(ch) {
+    if (rtl) {
+      ch = ch.replace(/[\u064B-\u065F\u0670\u0640]/g, "").replace(/[أإآٱ]/g, "ا");
+      return /^[\u0621-\u064A]$/.test(ch) ? ch : null;
+    }
+    ch = ch.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    return /^[a-z0-9]$/.test(ch) ? ch : null;
+  }
+
+  function feed(text) {
+    for (const raw of text) {
+      const ch = normalize(raw);
+      if (ch) { type(ch); continue; }
+      if (raw.trim() && !warned) {
+        warned = true;
+        flash(rtl ? "Passe au clavier arabe avec la touche 🌐 (Réglages → Général → Clavier → Claviers pour l'ajouter)."
+                  : "Passe au clavier français ou anglais avec la touche 🌐.");
+      }
+    }
+  }
+
+  kbInput.addEventListener("compositionstart", () => { composing = true; });
+  kbInput.addEventListener("compositionend", () => { composing = false; handleInput(); });
+  kbInput.addEventListener("input", () => { if (!composing) handleInput(); });
+  function handleInput() {
+    const v = kbInput.value;
+    if (v.length === 0) erase();                         // l'espace témoin a été effacée
+    else feed(v.startsWith(SENTINEL) ? v.slice(1) : v);  // lettres tapées (ou mot proposé par le clavier)
+    resetInput();
+  }
+  kbInput.addEventListener("keydown", (e) => {
+    if (e.key === "Backspace" && kbInput.value === SENTINEL) { e.preventDefault(); erase(); return; }
+    const arrows = { ArrowRight: rtl ? -1 : 1, ArrowLeft: rtl ? 1 : -1, ArrowDown: 1, ArrowUp: -1 };
+    if (e.key in arrows && sel) {
+      const d = e.key === "ArrowUp" || e.key === "ArrowDown" ? "down" : "right";
+      const dr = d === "down" ? arrows[e.key] : 0, dc = d === "right" ? arrows[e.key] : 0;
+      if (cellEl[key(sel.r + dr, sel.c + dc)]) select(sel.r + dr, sel.c + dc, d);
+      e.preventDefault();
+    }
+    if (e.key === "Enter") { e.preventDefault(); kbInput.blur(); }
   });
-  ["pointerup", "pointercancel", "pointerleave"].forEach((ev) => $("kb").addEventListener(ev, release));
-  // Une touche n'agit qu'au toucher : le « click » qui suit sur iPhone est ignoré pour ne pas taper deux fois.
-  $("kb").addEventListener("click", (e) => e.preventDefault());
-  $("kb").addEventListener("keydown", (e) => {
-    const k = e.target.closest(".key");
-    if (k && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); e.stopPropagation(); type(k.dataset.ch); }
-  });
-  $("kb").addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // Quand le clavier apparaît, le jeu se réduit à la partie visible de l'écran : la grille reste au-dessus.
+  function fitViewport() {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const open = vv.height < window.innerHeight - 100;
+    document.body.classList.toggle("kb-open", open);
+    if (open) {
+      $("game").style.height = `${vv.height - Math.max(0, parseFloat(getComputedStyle(document.documentElement).paddingTop) || 0)}px`;
+      window.scrollTo(0, 0);
+    } else {
+      $("game").style.height = "";
+    }
+    fitBoard();
+  }
+  if (window.visualViewport) {
+    visualViewport.addEventListener("resize", fitViewport);
+    visualViewport.addEventListener("scroll", () => { if (document.body.classList.contains("kb-open")) window.scrollTo(0, 0); });
+  }
 
   function flash(msg) {
     $("cluebar").classList.add("alert");
@@ -552,7 +585,7 @@
   if (window.ResizeObserver) new ResizeObserver(fitBoard).observe($("boardwrap"));
   window.addEventListener("resize", fitBoard);
 
-  // ---------- Clavier physique (ordinateur, clavier Bluetooth) ----------
+  // ---------- Clavier d'ordinateur et visionneuse ----------
   document.addEventListener("keydown", (e) => {
     if (!$("lightbox").hidden) {
       if (e.key === "Escape") $("lbClose").click();
@@ -560,17 +593,9 @@
       if (e.key === "ArrowRight") $("lbNext").click();
       return;
     }
-    if ($("game").hidden || !$("scrim").hidden || !sel) return;
-    if (e.key === "Backspace") { erase(); e.preventDefault(); return; }
-    const arrows = { ArrowRight: rtl ? -1 : 1, ArrowLeft: rtl ? 1 : -1, ArrowDown: 1, ArrowUp: -1 };
-    if (e.key in arrows) {
-      const d = e.key === "ArrowUp" || e.key === "ArrowDown" ? "down" : "right";
-      const dr = d === "down" ? arrows[e.key] : 0, dc = d === "right" ? arrows[e.key] : 0;
-      if (cellEl[key(sel.r + dr, sel.c + dc)]) select(sel.r + dr, sel.c + dc, d);
-      e.preventDefault(); return;
-    }
-    const ch = e.key.toLowerCase();
-    if (ch.length === 1 && KEYBOARDS[mode].some((row) => [...row].includes(ch))) { type(ch); e.preventDefault(); }
+    // Sur ordinateur, taper sans avoir touché de case envoie quand même les lettres dans la grille.
+    if ($("game").hidden || !$("scrim").hidden || !sel || keyboardOpen()) return;
+    if (e.key.length === 1 || e.key === "Backspace" || e.key.startsWith("Arrow")) openKeyboard();
   });
 
   // ---------- Branchements ----------
@@ -578,7 +603,7 @@
   $("openGallery").onclick = renderGallery;
   $("mapBack").onclick = renderHome;
   $("galleryBack").onclick = renderHome;
-  $("gameBack").onclick = renderMap;
+  $("gameBack").onclick = () => { kbInput.blur(); renderMap(); };
   $("btnCheck").onclick = check;
   $("btnHint").onclick = hint;
   $("btnClear").onclick = clearGrid;
