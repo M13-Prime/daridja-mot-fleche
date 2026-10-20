@@ -2,6 +2,16 @@
 
 Le jeu est un site statique : une page, des icônes, les photos. On le sert avec nginx sur la VM e2-micro gratuite, et Cloudflare s'occupe du HTTPS, du cache et de l'accès privé.
 
+Domaine : **alice-daridja.fr** (et www.alice-daridja.fr, redirigé vers alice-daridja.fr).
+
+## 0. Le domaine dans Cloudflare
+
+Cloudflare ne vend pas les .fr : le domaine s'achète chez un registraire français (OVH, Gandi, Infomaniak…).
+
+1. Cloudflare → **Add a site** → `alice-daridja.fr` → offre Free.
+2. Cloudflare affiche deux serveurs de noms (`xxx.ns.cloudflare.com`). Chez le registraire, remplace les serveurs DNS du domaine par ces deux-là.
+3. Attends l'e-mail « alice-daridja.fr is now active on Cloudflare » (souvent moins d'une heure, parfois jusqu'à 24 h).
+
 ## 1. Les photos
 
 ```bash
@@ -19,7 +29,7 @@ Légendes optionnelles dans `photos_src/captions.json` : `{"001.jpg": "Notre pre
 Depuis Cloud Shell ou ton ordinateur (avec `gcloud auth login` fait) :
 
 ```bash
-DOMAIN=daridja.tondomaine.fr VM=nom-de-ta-vm ZONE=europe-west1-b ./deploy/deploy.sh
+DOMAIN=alice-daridja.fr VM=nom-de-ta-vm ZONE=europe-west1-b ./deploy/deploy.sh
 ```
 
 Le script construit le site, l'envoie, installe nginx si besoin, ajoute un bloc `server` pour ce domaine seulement (tes autres sites ne bougent pas) et vérifie que ça répond. Relance la même commande à chaque mise à jour.
@@ -28,11 +38,13 @@ Si la VM sert déjà un autre site avec Caddy ou un conteneur sur le port 80 au 
 
 ## 3. Cloudflare
 
-1. **DNS** : enregistrement `A`, nom `daridja`, valeur = IP externe de la VM, **proxy activé** (nuage orange).
-2. **SSL/TLS** : garde le mode de ta zone.
-   - En **Flexible**, rien à faire.
-   - En **Full (strict)**, crée un *Origin Certificate* (SSL/TLS → Origin Server) pour `daridja.tondomaine.fr`, copie-le sur la VM et ajoute un `listen 443 ssl` avec ces fichiers dans `/etc/nginx/sites-available/daridja`.
-3. **Accès privé (recommandé, gratuit)** : Zero Trust → Access → Applications → *Self-hosted*, domaine `daridja.tondomaine.fr`, règle *Allow* avec son adresse e-mail et la tienne. Elle reçoit un code par e-mail une seule fois par mois. Sans ça, n'importe qui avec le lien voit vos photos.
+1. **DNS** :
+   - `A`, nom `@`, valeur = IP externe de la VM, **proxy activé** (nuage orange)
+   - `CNAME`, nom `www`, valeur `alice-daridja.fr`, proxy activé
+2. **SSL/TLS** (nouveau domaine, donc à régler) :
+   SSL/TLS → Overview → **Flexible** (Cloudflare chiffre jusqu'au téléphone, la VM reste en HTTP sur le port 80), puis SSL/TLS → Edge Certificates → **Always Use HTTPS** activé.
+   Pour chiffrer aussi entre Cloudflare et la VM : **Full (strict)** avec un *Origin Certificate* (SSL/TLS → Origin Server) installé sur nginx en `listen 443 ssl`.
+3. **Accès privé (recommandé, gratuit)** : Zero Trust → Access → Applications → *Self-hosted*, domaine `alice-daridja.fr` (ajoute aussi `www.alice-daridja.fr`), règle *Allow* avec son adresse e-mail et la tienne. Elle reçoit un code par e-mail une seule fois par mois. Sans ça, n'importe qui avec le lien voit vos photos.
 4. **Après une mise à jour** : Caching → Purge Everything, pour que son téléphone récupère la nouvelle version tout de suite.
 
 ## 4. Sur son iPhone
@@ -50,4 +62,4 @@ python3 scripts/prepare_photos.py && python3 build.py
 gcloud run deploy daridja --source . --region europe-west1 --allow-unauthenticated
 ```
 
-Puis, pour le domaine : `gcloud beta run domain-mappings create --service daridja --domain daridja.tondomaine.fr --region europe-west1`, et dans Cloudflare un `CNAME daridja → ghs.googlehosted.com` en **DNS only** (nuage gris) le temps que Google émette le certificat.
+Puis, pour le domaine : `gcloud beta run domain-mappings create --service daridja --domain alice-daridja.fr --region europe-west1`, puis dans Cloudflare les enregistrements `A`/`AAAA` que Google affiche, en **DNS only** (nuage gris) le temps que Google émette le certificat.

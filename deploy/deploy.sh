@@ -2,13 +2,13 @@
 # Met le jeu en ligne sur une VM Google Cloud (ex. l'e2-micro gratuite) avec nginx, derrière Cloudflare.
 #
 # Usage :
-#   DOMAIN=daridja.exemple.fr VM=ma-vm ZONE=europe-west1-b ./deploy/deploy.sh
+#   DOMAIN=alice-daridja.fr VM=ma-vm ZONE=europe-west1-b ./deploy/deploy.sh
 # Variables optionnelles : PROJECT (projet GCP, sinon celui par défaut de gcloud)
 #
 # À lancer depuis Cloud Shell ou un ordinateur où `gcloud auth login` est fait.
 set -euo pipefail
 
-: "${DOMAIN:?Indique DOMAIN, par exemple DOMAIN=daridja.exemple.fr}"
+: "${DOMAIN:?Indique DOMAIN, par exemple DOMAIN=alice-daridja.fr}"
 : "${VM:?Indique VM, le nom de ta VM (gcloud compute instances list)}"
 : "${ZONE:?Indique ZONE, la zone de ta VM, par exemple europe-west1-b}"
 PROJECT_FLAG=${PROJECT:+--project=$PROJECT}
@@ -42,7 +42,8 @@ gcloud compute ssh $PROJECT_FLAG --zone "$ZONE" "$VM" --command '
 echo "4/4  Vérification"
 IP=$(gcloud compute instances describe "$VM" $PROJECT_FLAG --zone "$ZONE" --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
 if curl -fsS -o /dev/null -H "Host: $DOMAIN" "http://$IP/"; then
-  echo "En ligne sur la VM ($IP). Dans Cloudflare : enregistrement A « ${DOMAIN%%.*} » → $IP, proxy activé (nuage orange)."
+  echo "En ligne sur la VM ($IP)."
+  echo "Dans Cloudflare : A « @ » → $IP et CNAME « www » → $DOMAIN, proxy activé (nuage orange)."
 else
   echo "La VM ne répond pas sur le port 80. Vérifie la règle de pare-feu « allow-http » de la VM."
   exit 1
