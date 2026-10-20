@@ -3,8 +3,8 @@
 Chaque mot est précédé d'une case définition : à gauche pour un mot horizontal (▸),
 au-dessus pour un mot vertical (▾). Une case définition peut porter deux définitions.
 
-Usage : python3 generator/generate.py [--seed N] [--per-level 3]
-Produit web/grids.js (chargé directement par la page, sans serveur).
+Usage : python3 generator/generate.py [--seed N]
+Produit web/levels.js : 30 niveaux en lettres latines, 30 en lettres arabes.
 """
 import argparse
 import json
@@ -13,12 +13,24 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-LEVELS = {
-    # nom: (lignes, colonnes, poids par palier de difficulté)
-    "facile": (7, 7, {1: 1.0}),
-    "moyen": (9, 9, {1: 0.4, 2: 1.0}),
-    "difficile": (11, 11, {1: 0.15, 2: 0.6, 3: 1.0}),
-}
+N_LEVELS = 30
+MODES = {"latin": "word", "arabic": "ar"}  # mode -> champ de réponse dans words.json
+
+
+def level_config(n):
+    """Niveau n (1..30) -> (taille de grille, poids par palier). Monte de 5×5 à 10×10."""
+    size = 5 + (n - 1) // 5
+    if n <= 6:
+        w = {1: 1.0}
+    elif n <= 12:
+        w = {1: 1.0, 2: 0.35}
+    elif n <= 18:
+        w = {1: 0.5, 2: 1.0}
+    elif n <= 24:
+        w = {1: 0.3, 2: 1.0, 3: 0.5}
+    else:
+        w = {1: 0.15, 2: 0.6, 3: 1.0}
+    return size, w
 
 DIRS = {"right": (0, 1), "down": (1, 0)}
 PERP = {"right": (1, 0), "down": (0, 1)}
@@ -158,11 +170,10 @@ def build(words, rows, cols, weights, rng):
     return g
 
 
-def generate(words, level, rng, attempts=150):
-    rows, cols, weights = LEVELS[level]
+def generate(words, size, weights, rng, attempts=40):
     best, best_score = None, -1
     for _ in range(attempts):
-        g = build(words, rows, cols, weights, rng)
+        g = build(words, size, size, weights, rng)
         score = g.letters() + 2 * len(g.words)
         if score > best_score:
             best, best_score = g, score
@@ -172,28 +183,31 @@ def generate(words, level, rng, attempts=150):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--seed", type=int, default=2026)
-    ap.add_argument("--per-level", type=int, default=3)
     args = ap.parse_args()
     rng = random.Random(args.seed)
-    words = json.loads((ROOT / "data" / "words.json").read_text(encoding="utf-8"))
-    grids = []
-    for level in LEVELS:
-        for n in range(args.per_level):
-            g = generate(words, level, rng)
-            grids.append({
-                "id": f"{level}-{n + 1}",
-                "level": level,
-                "rows": g.rows,
-                "cols": g.cols,
-                "cells": g.export(),
-                "words": [{"word": w["word"], "clue": w["clue"], "r": w["r"], "c": w["c"], "dir": w["dir"]} for w in g.words],
+    raw = json.loads((ROOT / "data" / "words.json").read_text(encoding="utf-8"))
+    out = {}
+    for mode, field in MODES.items():
+        seen, words = set(), []
+        for w in raw:
+            ans = w[field]
+            if ans not in seen:
+                seen.add(ans)
+                words.append({"word": ans, "clue": w["clue"], "tier": w["tier"], "latin": w["word"], "ar": w["ar"]})
+        levels = []
+        for n in range(1, N_LEVELS + 1):
+            size, weights = level_config(n)
+            g = generate(words, size, weights, rng)
+            levels.append({
+                "n": n, "size": size, "cells": g.export(),
+                "words": [{"word": w["word"], "clue": w["clue"], "latin": w["latin"], "ar": w["ar"],
+                           "r": w["r"], "c": w["c"], "dir": w["dir"]} for w in g.words],
             })
-            fill = g.letters() / (g.rows * g.cols)
-            print(f"{level}-{n + 1}: {len(g.words)} mots, remplissage {fill:.0%}")
-    out = ROOT / "web" / "grids.js"
-    out.parent.mkdir(exist_ok=True)
-    out.write_text("window.GRIDS = " + json.dumps(grids, ensure_ascii=False) + ";\n", encoding="utf-8")
-    print(f"→ {out.relative_to(ROOT)}")
+            print(f"{mode} {n:>2}: {size}×{size}, {len(g.words)} mots")
+        out[mode] = levels
+    dest = ROOT / "web" / "levels.js"
+    dest.write_text("window.LEVELS = " + json.dumps(out, ensure_ascii=False, separators=(",", ":")) + ";\n", encoding="utf-8")
+    print(f"→ {dest.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

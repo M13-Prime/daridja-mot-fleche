@@ -2,35 +2,25 @@
 
 Mots fléchés en darija : une grille où les définitions sont en français et les réponses en darija.
 
-## Statut
+## Jouer
 
-Squelette initial. Hypothèses de départ (à valider) :
+Ouvrir `dist/daridja.html` (un seul fichier, pensé pour iPhone). Deux claviers au choix, latin ou arabe, chacun avec 30 niveaux du plus simple au plus corsé, répartis en 5 chapitres (La Casbah, Oran, Tlemcen, Djurdjura, Tassili). On peut sauter à n'importe quel niveau depuis la carte.
 
-- Jeu web statique (HTML/CSS/JS), jouable dans le navigateur, sans backend.
-- Darija écrite en alphabet latin (arabizi : `3`, `7`, `9`…) pour tenir dans une grille.
-- Dictionnaire de mots dans `data/words.json`, grilles générées ou écrites à la main.
-
-## Lancer
+## Développer
 
 ```
-python3 generator/generate.py   # régénère web/grids.js
-open web/index.html             # aucune installation nécessaire
+python3 generator/generate.py   # régénère web/levels.js (30 niveaux par clavier)
+python3 build.py                # assemble dist/daridja.html
 ```
 
-## Structure
+- `data/words.json` : mots (arabizi + arabe), définition française, thème, palier 1 à 3
+- `generator/generate.py` : générateur de grilles
+- `web/` : le jeu (HTML/CSS/JS sans dépendance)
 
-```
-data/words.json         dictionnaire de départ (mot, définition, thème, palier 1-3)
-generator/generate.py   générateur de grilles (facile 7×7, moyen 9×9, difficile 11×11)
-web/                    le jeu (HTML/CSS/JS statique)
-```
-
-## Orthographe
-
-`3` = ع, `7` = ح, `q` = ق, `kh` = خ, `gh` = غ, `ch` = ش. Une lettre par case.
+Orthographe latine : `3` = ع, `7` = ح, `q` = ق, `kh` = خ, `gh` = غ, `ch` = ش.
 
 ## Prochaines étapes
 
-- Remplacer le dictionnaire de départ par MADAR (Alger) et classer les mots par fréquence (corpus ayoubkirouane/Algerian-Darija).
-- Gamification : progression, séries, XP, révision des mots ratés.
-- Récompenses : images, poésie et musique.
+- Enrichir le dictionnaire avec MADAR (Alger) et classer les mots par fréquence (ayoubkirouane/Algerian-Darija).
+- Récompenses : poésie (Hizia de Ben Guittoun), images, musique chaâbi et raï.
+- Révision des mots ratés.

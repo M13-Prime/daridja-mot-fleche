@@ -2,35 +2,77 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Daridja">
 <title>Daridja Mots Fléchés</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+Bhaijaan+2:wght@500;600;700;800&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+<style>html{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}</style>
+<link rel="stylesheet" href="app.css">
 </head>
 <body>
-<header>
-  <h1>Daridja <span>mots fléchés</span></h1>
-  <p class="sub">Définitions en français, réponses en darija.</p>
-</header>
-
-<nav id="levels" aria-label="Niveaux"></nav>
-<nav id="grids" aria-label="Grilles"></nav>
-
-<main>
-  <div id="board" role="grid"></div>
-  <div class="actions">
-    <button id="check">Vérifier</button>
-    <button id="clear" class="ghost">Effacer</button>
+<!--BODY-->
+<section id="home" class="view">
+  <div class="brand"><h1>Daridja</h1><span class="ar" lang="ar">دارجة</span></div>
+  <p class="tagline">Mots fléchés en darija algérienne. Les définitions sont en français.</p>
+  <div class="stats">
+    <div class="stat"><b id="statXp">0</b><span>XP</span></div>
+    <div class="stat"><b id="statStreak">0</b><span>Jours d'affilée</span></div>
+    <div class="stat"><b id="statStars">0</b><span>Étoiles</span></div>
   </div>
-  <p id="status" aria-live="polite"></p>
-  <details class="help">
-    <summary>Comment écrire la darija ?</summary>
-    <p>Alphabet latin, façon SMS : <b>3</b> = ع, <b>7</b> = ح, <b>q</b> = ق, <b>kh</b> = خ, <b>gh</b> = غ, <b>ch</b> = ش. Une lettre par case.</p>
-  </details>
-</main>
+  <p class="section-label">Choisis ton clavier</p>
+  <div class="modes">
+    <button class="mode" id="modeLatin" data-mode="latin">
+      <h2>Lettres latines</h2>
+      <span class="sample">khobz · yemma · bezzaf</span>
+      <span class="go" aria-hidden="true">›</span>
+      <div class="bar"><i id="barLatin"></i></div>
+      <span class="lvl" id="lvlLatin"></span>
+    </button>
+    <button class="mode" id="modeArabic" data-mode="arabic">
+      <h2>Lettres arabes</h2>
+      <span class="sample" dir="rtl" lang="ar">خبز · يما · بزاف</span>
+      <span class="go" aria-hidden="true">›</span>
+      <div class="bar"><i id="barArabic"></i></div>
+      <span class="lvl" id="lvlArabic"></span>
+    </button>
+  </div>
+</section>
 
-<script src="grids.js"></script>
+<section id="map" class="view" hidden>
+  <div class="topbar">
+    <button class="iconbtn" id="mapBack" aria-label="Retour à l'accueil">‹</button>
+    <h2 id="mapTitle">Lettres latines<small>30 niveaux</small></h2>
+    <span class="pill"><span class="star">★</span><span id="mapStars">0</span></span>
+  </div>
+  <div id="mapScroll"></div>
+</section>
+
+<section id="game" class="view" hidden>
+  <div class="topbar">
+    <button class="iconbtn" id="gameBack" aria-label="Retour à la carte">‹</button>
+    <h2 id="gameTitle">Niveau 1<small></small></h2>
+    <span class="pill" id="xpPill">0 XP</span>
+  </div>
+  <div class="cluebar">
+    <span class="arrow" id="clueArrow">▸</span>
+    <p id="clueText">Touche une case</p>
+    <span class="len" id="clueLen"></span>
+  </div>
+  <div class="boardwrap" id="boardwrap"><div id="board" role="grid" aria-label="Grille"></div></div>
+  <div class="actions">
+    <button class="btn warn" id="btnClear">Effacer</button>
+    <button class="btn" id="btnHint" disabled>Indice <span class="count" id="hintCount">3</span></button>
+    <button class="btn primary" id="btnCheck">Vérifier</button>
+  </div>
+  <div class="kb" id="kb"></div>
+</section>
+
+<div class="scrim" id="scrim" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+<canvas id="confetti" hidden></canvas>
+<!--/BODY-->
+<script src="levels.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
