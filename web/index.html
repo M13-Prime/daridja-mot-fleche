@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daridja Mots Fléchés</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Daridja <span>mots fléchés</span></h1>
+  <p class="sub">Définitions en français, réponses en darija.</p>
+</header>
+
+<nav id="levels" aria-label="Niveaux"></nav>
+<nav id="grids" aria-label="Grilles"></nav>
+
+<main>
+  <div id="board" role="grid"></div>
+  <div class="actions">
+    <button id="check">Vérifier</button>
+    <button id="clear" class="ghost">Effacer</button>
+  </div>
+  <p id="status" aria-live="polite"></p>
+  <details class="help">
+    <summary>Comment écrire la darija ?</summary>
+    <p>Alphabet latin, façon SMS : <b>3</b> = ع, <b>7</b> = ح, <b>q</b> = ق, <b>kh</b> = خ, <b>gh</b> = غ, <b>ch</b> = ش. Une lettre par case.</p>
+  </details>
+</main>
+
+<script src="grids.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

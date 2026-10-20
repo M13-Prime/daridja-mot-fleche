@@ -1,0 +1,74 @@
+:root {
+  --bg: #f6f1e7;
+  --ink: #1f2a24;
+  --muted: #6b6a60;
+  --green: #0f6b45;
+  --green-soft: #dcebe2;
+  --red: #c0392b;
+  --cell: #fffdf8;
+  --clue: #0f6b45;
+  --clue-ink: #f6f1e7;
+  --block: #2b3530;
+  --line: #2b3530;
+  --hl: #f3dfa6;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141a17; --ink: #ece7dc; --muted: #9a998f; --green: #4fbf8a; --green-soft: #1f3a2d;
+    --cell: #1d2420; --clue: #1f5a40; --clue-ink: #ece7dc; --block: #0b0f0d; --line: #3a4640; --hl: #4a4226;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 24px 16px 48px; background: var(--bg); color: var(--ink);
+  font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; align-items: center;
+}
+header { text-align: center; margin-bottom: 18px; }
+h1 { font-family: Fraunces, Georgia, serif; font-size: clamp(28px, 6vw, 42px); margin: 0; color: var(--green); }
+h1 span { color: var(--ink); font-weight: 600; }
+.sub { color: var(--muted); margin: 6px 0 0; }
+
+nav { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 10px; }
+nav button {
+  border: 1.5px solid var(--green); background: transparent; color: var(--green);
+  padding: 7px 14px; border-radius: 999px; font: 600 14px Inter, sans-serif; cursor: pointer;
+}
+nav button[aria-pressed="true"] { background: var(--green); color: var(--bg); }
+#grids button { padding: 4px 12px; font-size: 13px; }
+
+main { width: 100%; max-width: 640px; display: flex; flex-direction: column; align-items: center; }
+#board {
+  --n: 7; display: grid; grid-template-columns: repeat(var(--n), 1fr);
+  width: min(100%, calc(var(--n) * 58px)); border: 2px solid var(--line); background: var(--line); gap: 1px;
+  margin: 12px 0 16px;
+}
+.cell { aspect-ratio: 1; position: relative; display: flex; align-items: center; justify-content: center; }
+.cell.B { background: var(--block); }
+.cell.L { background: var(--cell); }
+.cell.L.hl { background: var(--hl); }
+.cell.L input {
+  width: 100%; height: 100%; border: 0; background: transparent; text-align: center; color: var(--ink);
+  font: 600 clamp(14px, 4vw, 22px) Inter, sans-serif; text-transform: lowercase; caret-color: var(--green); padding: 0;
+}
+.cell.L input:focus { outline: 2px solid var(--green); outline-offset: -2px; }
+.cell.L.bad input { color: var(--red); }
+.cell.L.ok { background: var(--green-soft); }
+.cell.C {
+  background: var(--clue); color: var(--clue-ink); flex-direction: column; align-items: stretch;
+  font-size: clamp(6.5px, 1.6vw, 9.5px); line-height: 1.1; padding: 2px; cursor: pointer; overflow: hidden;
+}
+.clue { flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; position: relative; padding: 0 6px 0 2px; }
+.clue + .clue { border-top: 1px solid rgba(255,255,255,.35); }
+.clue::after { position: absolute; right: 0; font-size: 9px; opacity: .9; }
+.clue.right::after { content: "▸"; }
+.clue.down::after { content: "▾"; bottom: -1px; right: 1px; }
+
+.actions { display: flex; gap: 10px; }
+.actions button {
+  background: var(--green); color: var(--bg); border: 0; padding: 10px 22px; border-radius: 10px;
+  font: 600 15px Inter, sans-serif; cursor: pointer;
+}
+.actions .ghost { background: transparent; color: var(--green); border: 1.5px solid var(--green); }
+#status { min-height: 1.4em; font-weight: 600; color: var(--green); }
+.help { color: var(--muted); font-size: 14px; max-width: 460px; }
+.help summary { cursor: pointer; }
