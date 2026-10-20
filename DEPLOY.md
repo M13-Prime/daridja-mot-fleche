@@ -40,22 +40,31 @@ Google n'offre qu'une seule e2-micro gratuite par compte de facturation, dans `u
 
 ## 3. Envoyer sur la VM
 
-Depuis Cloud Shell ou ton ordinateur (avec `gcloud auth login` fait) :
+La VM `signal-tracker` (us-central1-a) passe par un **Cloudflare Tunnel** : aucun port web n'est ouvert, `cloudflared` amène le trafic aux services locaux. Le jeu suit le même chemin : nginx écoute seulement sur `127.0.0.1:8081`.
+
+Depuis Cloud Shell :
 
 ```bash
-DOMAIN=alice-daridja.fr VM=nom-de-la-vm ZONE=zone-de-la-vm ./deploy/deploy.sh
+TUNNEL=1 DOMAIN=alice-daridja.fr VM=signal-tracker ZONE=us-central1-a ./deploy/deploy.sh
 ```
+
+Puis, une seule fois, brancher le domaine sur le tunnel : Zero Trust → Networks → Tunnels → le tunnel de signal-tracker → **Public Hostname** → *Add a public hostname*, deux fois :
+
+| Subdomain | Domain | Service |
+|---|---|---|
+| *(vide)* | alice-daridja.fr | HTTP → `localhost:8081` |
+| `www` | alice-daridja.fr | HTTP → `localhost:8081` |
+
+Cloudflare crée lui-même les enregistrements DNS. Supprime les anciens `A` et `AAAA` sur `@` s'il en reste (sinon il refuse d'ajouter le nom).
+
+Pour une VM sans tunnel, exposée sur le port 80 : même commande sans `TUNNEL=1`, puis l'enregistrement `A` décrit plus bas.
 
 Le script construit le site, l'envoie, installe nginx si besoin, ajoute un bloc `server` pour ce domaine seulement (tes autres sites ne bougent pas) et vérifie que ça répond. Relance la même commande à chaque mise à jour.
 
 ## 4. Cloudflare
 
-1. **DNS** :
-   - `A`, nom `@`, valeur = IP externe de la VM, **proxy activé** (nuage orange)
-   - `CNAME`, nom `www`, valeur `alice-daridja.fr`, proxy activé
-2. **SSL/TLS** (nouveau domaine, donc à régler) :
-   SSL/TLS → Overview → **Flexible** (Cloudflare chiffre jusqu'au téléphone, la VM reste en HTTP sur le port 80), puis SSL/TLS → Edge Certificates → **Always Use HTTPS** activé.
-   Pour chiffrer aussi entre Cloudflare et la VM : **Full (strict)** avec un *Origin Certificate* (SSL/TLS → Origin Server) installé sur nginx en `listen 443 ssl`.
+1. **DNS** : avec le tunnel, rien à faire (fait à l'étape 3). Sans tunnel : `A @` → IP de la VM et `CNAME www` → `alice-daridja.fr`, nuage orange.
+2. **SSL/TLS** : SSL/TLS → Edge Certificates → **Always Use HTTPS** activé. Avec le tunnel, le trafic jusqu'à la VM est déjà chiffré, le mode SSL n'a pas d'importance. Sans tunnel, choisis **Flexible**.
 3. **Accès privé (recommandé, gratuit)** : Zero Trust → Access → Applications → *Self-hosted*, domaine `alice-daridja.fr` (ajoute aussi `www.alice-daridja.fr`), règle *Allow* avec son adresse e-mail et la tienne. Elle reçoit un code par e-mail une seule fois par mois. Sans ça, n'importe qui avec le lien voit vos photos.
 4. **Après une mise à jour** : Caching → Purge Everything, pour que son téléphone récupère la nouvelle version tout de suite.
 
