@@ -41,10 +41,11 @@ gcloud compute ssh $PROJECT_FLAG --zone "$ZONE" "$VM" --command '
 
 echo "4/4  Vérification"
 IP=$(gcloud compute instances describe "$VM" $PROJECT_FLAG --zone "$ZONE" --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
-if curl -fsS -o /dev/null -H "Host: $DOMAIN" "http://$IP/"; then
+# Test depuis la VM elle-même : le pare-feu n'accepte que Cloudflare sur le port 80.
+if gcloud compute ssh $PROJECT_FLAG --zone "$ZONE" "$VM" --command "curl -fsS -o /dev/null -H 'Host: $DOMAIN' http://127.0.0.1/"; then
   echo "En ligne sur la VM ($IP)."
   echo "Dans Cloudflare : A « @ » → $IP et CNAME « www » → $DOMAIN, proxy activé (nuage orange)."
 else
-  echo "La VM ne répond pas sur le port 80. Vérifie la règle de pare-feu « allow-http » de la VM."
+  echo "nginx ne répond pas sur la VM. Regarde les erreurs avec : gcloud compute ssh $VM --zone $ZONE --command 'sudo journalctl -u nginx -n 30'"
   exit 1
 fi
