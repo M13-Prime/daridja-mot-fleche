@@ -24,7 +24,11 @@ L'ordre des cadeaux suit l'ordre alphabétique des fichiers : nomme-les `001.jpg
 Légendes optionnelles dans `photos_src/captions.json` : `{"001.jpg": "Notre premier café"}`.
 `photos_src/` et `web/photos/` sont ignorés par git : les photos ne partent jamais sur GitHub.
 
-## 2. Créer la VM (une seule fois)
+## 2. La VM
+
+**Option conseillée : la VM de signaltracker.fr.** Le jeu est un petit site statique, il ne la ralentit pas et reste gratuit. Passe directement à l'étape 3 avec le nom et la zone de cette VM. nginx refuse alice-daridja.fr à tout ce qui n'est pas Cloudflare, donc le pare-feu partagé ne pose pas de problème.
+
+**Sinon, une VM dédiée** (une seule fois) :
 
 ```bash
 ./deploy/create-vm.sh
@@ -39,7 +43,7 @@ Google n'offre qu'une seule e2-micro gratuite par compte de facturation, dans `u
 Depuis Cloud Shell ou ton ordinateur (avec `gcloud auth login` fait) :
 
 ```bash
-DOMAIN=alice-daridja.fr VM=daridja ZONE=us-central1-a ./deploy/deploy.sh
+DOMAIN=alice-daridja.fr VM=nom-de-la-vm ZONE=zone-de-la-vm ./deploy/deploy.sh
 ```
 
 Le script construit le site, l'envoie, installe nginx si besoin, ajoute un bloc `server` pour ce domaine seulement (tes autres sites ne bougent pas) et vérifie que ça répond. Relance la même commande à chaque mise à jour.
