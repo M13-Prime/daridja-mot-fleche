@@ -1,2 +1,12 @@
 .DS_Store
 node_modules/
+__pycache__/
+
+# Photos privées : jamais sur GitHub
+photos_src/
+web/photos/
+
+# Sorties de build
+dist/site/
+dist/*.tgz
+dist/nginx-daridja.conf

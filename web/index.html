@@ -2,35 +2,46 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6f8fc" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121a24" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Daridja">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
 <title>Daridja Mots Fléchés</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Baloo+Bhaijaan+2:wght@500;600;700;800&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
-<style>html{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}</style>
+<style>html{padding-top:env(safe-area-inset-top)}</style>
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
 <!--BODY-->
-<section id="home" class="view">
-  <div class="brand"><h1>Daridja</h1><span class="ar" lang="ar">دارجة</span></div>
-  <p class="tagline">Mots fléchés en darija algérienne. Les définitions sont en français.</p>
+<section id="home" class="view scrollable">
+  <div class="brand">
+    <h1>Daridja</h1><span class="ar" lang="ar">دارجة</span>
+    <div class="theme" role="group" aria-label="Thème">
+      <button data-theme-set="auto" aria-label="Thème automatique">Auto</button><button data-theme-set="light" aria-label="Thème clair">☀︎</button><button data-theme-set="dark" aria-label="Thème sombre">☾</button>
+    </div>
+  </div>
+  <p class="tagline">Mots fléchés en darija algérienne, de La Casbah jusqu'au Hoggar.</p>
   <div class="stats">
     <div class="stat"><b id="statXp">0</b><span>XP</span></div>
-    <div class="stat"><b id="statStreak">0</b><span>Jours d'affilée</span></div>
+    <div class="stat"><b id="statStreak">0</b><span>Jours de suite</span></div>
     <div class="stat"><b id="statStars">0</b><span>Étoiles</span></div>
   </div>
   <p class="section-label">Choisis ton clavier</p>
-  <div class="modes">
-    <button class="mode" id="modeLatin" data-mode="latin">
+  <div class="cards">
+    <button class="card" data-mode="latin">
       <h2>Lettres latines</h2>
       <span class="sample">khobz · yemma · bezzaf</span>
       <span class="go" aria-hidden="true">›</span>
       <div class="bar"><i id="barLatin"></i></div>
       <span class="lvl" id="lvlLatin"></span>
     </button>
-    <button class="mode" id="modeArabic" data-mode="arabic">
+    <button class="card" data-mode="arabic">
       <h2>Lettres arabes</h2>
       <span class="sample" dir="rtl" lang="ar">خبز · يما · بزاف</span>
       <span class="go" aria-hidden="true">›</span>
@@ -38,24 +49,35 @@
       <span class="lvl" id="lvlArabic"></span>
     </button>
   </div>
+  <p class="section-label">Tes cadeaux</p>
+  <div class="cards">
+    <button class="card gift" id="openGallery">
+      <h2>Galerie</h2>
+      <span class="sample" id="giftSample">Une photo tous les 3 niveaux</span>
+      <span class="go" aria-hidden="true">♥</span>
+      <div class="bar"><i id="barGift"></i></div>
+      <span class="lvl" id="lvlGift"></span>
+    </button>
+  </div>
 </section>
 
 <section id="map" class="view" hidden>
   <div class="topbar">
     <button class="iconbtn" id="mapBack" aria-label="Retour à l'accueil">‹</button>
-    <h2 id="mapTitle">Lettres latines<small>30 niveaux</small></h2>
+    <h2 id="mapTitle">Lettres latines</h2>
+    <span class="pill giftpill" id="mapGift"></span>
     <span class="pill"><span class="star">★</span><span id="mapStars">0</span></span>
   </div>
-  <div id="mapScroll"></div>
+  <div id="mapScroll" class="scrollable"></div>
 </section>
 
 <section id="game" class="view" hidden>
   <div class="topbar">
     <button class="iconbtn" id="gameBack" aria-label="Retour à la carte">‹</button>
-    <h2 id="gameTitle">Niveau 1<small></small></h2>
+    <h2 id="gameTitle">Niveau 1</h2>
     <span class="pill" id="xpPill">0 XP</span>
   </div>
-  <div class="cluebar">
+  <div class="cluebar" id="cluebar">
     <span class="arrow" id="clueArrow">▸</span>
     <p id="clueText">Touche une case</p>
     <span class="len" id="clueLen"></span>
@@ -69,10 +91,24 @@
   <div class="kb" id="kb"></div>
 </section>
 
+<section id="gallery" class="view" hidden>
+  <div class="topbar">
+    <button class="iconbtn" id="galleryBack" aria-label="Retour à l'accueil">‹</button>
+    <h2>Galerie<small id="gallerySub"></small></h2>
+  </div>
+  <div id="galleryGrid" class="scrollable"></div>
+</section>
+
 <div class="scrim" id="scrim" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+<div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Photo">
+  <div class="lbtop"><span id="lbCount"></span><button id="lbClose" aria-label="Fermer">×</button></div>
+  <div class="lbimg" id="lbImg"></div>
+  <div class="lbbottom"><button id="lbPrev" aria-label="Photo précédente">‹</button><span class="lbcap" id="lbCap"></span><button id="lbNext" aria-label="Photo suivante">›</button></div>
+</div>
 <canvas id="confetti" hidden></canvas>
 <!--/BODY-->
 <script src="levels.js"></script>
+<script src="photos/manifest.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -1,17 +1,21 @@
 (() => {
   "use strict";
-  const LEVELS = window.LEVELS || { latin: [], arabic: [] };
+  const RAW = window.LEVELS || { latin: [], arabic: [] };
+  const PHOTOS = Array.isArray(window.PHOTOS) ? window.PHOTOS : [];
   const $ = (id) => document.getElementById(id);
 
+  const GIFT_EVERY = 3;
+  const GIFT_TOTAL = 168;
+  const PER_CHAPTER = 12;
   const CHAPTERS = [
-    { name: "La Casbah", sub: "Les ruelles d'Alger" },
-    { name: "Oran", sub: "El Bahia, la radieuse" },
-    { name: "Tlemcen", sub: "La perle du Maghreb" },
-    { name: "Djurdjura", sub: "Les montagnes de Kabylie" },
-    { name: "Tassili", sub: "Le Grand Sud" },
+    ["La Casbah", "Les ruelles d'Alger"], ["Tipaza", "Les ruines face à la mer"], ["Oran", "El Bahia, la radieuse"],
+    ["Tlemcen", "La perle du Maghreb"], ["Béjaïa", "Le golfe et Yemma Gouraya"], ["Constantine", "La ville des ponts"],
+    ["Djurdjura", "Les montagnes de Kabylie"], ["Annaba", "La coquette de l'Est"], ["Ghardaïa", "La vallée du M'zab"],
+    ["Sétif", "Les hauts plateaux"], ["Biskra", "La reine des Ziban"], ["Cherchell", "L'ancienne Césarée"],
+    ["Jijel", "La corniche"], ["Mostaganem", "La ville de Sidi Lakhdar"], ["Blida", "La ville des roses"],
+    ["Timimoun", "L'oasis rouge"], ["Taghit", "Les dunes de la Saoura"], ["El Kala", "Les lacs et la forêt"],
+    ["Tamanrasset", "Les portes du Hoggar"], ["Djanet", "Les fresques du Tassili"], ["Assekrem", "Le lever du soleil sur le Hoggar"],
   ];
-  const PER_CHAPTER = 6;
-
   const PROVERBS = [
     ["Elli fat mat", "اللي فات مات", "Ce qui est passé est mort : on regarde devant."],
     ["Lyed wa7da ma tsaffaqch", "اليد وحدة ما تصفقش", "Une seule main n'applaudit pas."],
@@ -26,15 +30,14 @@
     ["Ma ta3ref khirou 7atta tjarreb ghirou", "ما تعرف خيرو حتى تجرب غيرو", "On ne connaît la valeur de quelqu'un qu'après en avoir essayé un autre."],
     ["Zid el ma zid eddqiq", "زيد الما زيد الدقيق", "Plus d'eau, plus de farine : chaque solution demande un ajustement."],
   ];
-
   const KEYBOARDS = {
     latin: ["azertyuiop", "qsdfghjklm", ["3", "7", "w", "x", "c", "v", "b", "n", "⌫"]],
     arabic: ["ضصقفغعهخحج", "شسيبلاتنمكط", ["ذ", "ث", "ر", "ى", "ة", "و", "ز", "ظ", "د", "ء", "⌫"]],
   };
 
-  // ---------- Sauvegarde ----------
-  const STORE_KEY = "daridja-v1";
-  const blank = () => ({ xp: 0, streak: { count: 0, last: "" }, modes: { latin: { stars: {} }, arabic: { stars: {} } } });
+  // ---------- Sauvegarde (dans le navigateur du téléphone) ----------
+  const STORE_KEY = "daridja-v2";
+  const blank = () => ({ xp: 0, theme: "auto", streak: { count: 0, last: "" }, modes: { latin: { stars: {} }, arabic: { stars: {} } } });
   let store = blank();
   try {
     const raw = localStorage.getItem(STORE_KEY);
@@ -42,31 +45,50 @@
   } catch (e) { /* stockage indisponible : on joue sans sauvegarde */ }
   const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) {} };
 
-  const today = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
-  const yesterday = () => { const d = new Date(Date.now() - 864e5); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+  const dayKey = (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  const today = () => dayKey(new Date());
+  const yesterday = () => dayKey(new Date(Date.now() - 864e5));
   const streakCount = () => (store.streak.last === today() || store.streak.last === yesterday() ? store.streak.count : 0);
-  const starsOf = (mode) => store.modes[mode].stars;
-  const totalStars = (mode) => Object.values(starsOf(mode)).reduce((a, b) => a + b, 0);
-  const frontier = (mode) => {
-    const done = Object.keys(starsOf(mode)).map(Number);
-    return Math.min(LEVELS[mode].length, (done.length ? Math.max(...done) : 0) + 1);
+  const starsOf = (m) => store.modes[m].stars;
+  const totalStars = (m) => Object.values(starsOf(m)).reduce((a, b) => a + b, 0);
+  const completed = () => Object.keys(starsOf("latin")).length + Object.keys(starsOf("arabic")).length;
+  const unlockedGifts = () => Math.min(GIFT_TOTAL, Math.floor(completed() / GIFT_EVERY));
+  const levelsBeforeGift = () => GIFT_EVERY - (completed() % GIFT_EVERY);
+  const frontier = (m) => {
+    const done = Object.keys(starsOf(m)).map(Number);
+    return Math.min(RAW[m].length, (done.length ? Math.max(...done) : 0) + 1);
   };
+  const chapterOf = (n) => CHAPTERS[Math.min(CHAPTERS.length - 1, Math.floor((n - 1) / PER_CHAPTER))];
+
+  // ---------- Thème ----------
+  function applyTheme() {
+    const t = store.theme;
+    if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+    else document.documentElement.removeAttribute("data-theme");
+    document.querySelectorAll("[data-theme-set]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.themeSet === t));
+  }
+  document.querySelectorAll("[data-theme-set]").forEach((b) => {
+    b.onclick = () => { store.theme = b.dataset.themeSet; save(); applyTheme(); };
+  });
 
   // ---------- Vues ----------
-  function show(view) {
-    ["home", "map", "game"].forEach((v) => { $(v).hidden = v !== view; });
-  }
+  function show(view) { ["home", "map", "game", "gallery"].forEach((v) => { $(v).hidden = v !== view; }); }
 
   function renderHome() {
     $("statXp").textContent = store.xp;
     $("statStreak").textContent = streakCount();
     $("statStars").textContent = totalStars("latin") + totalStars("arabic");
     [["latin", "Latin"], ["arabic", "Arabic"]].forEach(([m, k]) => {
-      const total = LEVELS[m].length;
+      const total = RAW[m].length;
       const done = Object.keys(starsOf(m)).length;
       $("bar" + k).style.width = `${(done / total) * 100}%`;
-      $("lvl" + k).textContent = done ? `Niveau ${frontier(m)} sur ${total} · ${totalStars(m)} ★` : `${total} niveaux, du plus simple au plus corsé`;
+      $("lvl" + k).textContent = done
+        ? `Niveau ${frontier(m)} sur ${total} · ${chapterOf(frontier(m))[0]}`
+        : `${total} niveaux, du plus simple au plus corsé`;
     });
+    const g = unlockedGifts();
+    $("barGift").style.width = `${(g / GIFT_TOTAL) * 100}%`;
+    $("lvlGift").textContent = `${g} photo${g > 1 ? "s" : ""} sur ${GIFT_TOTAL} · la prochaine dans ${levelsBeforeGift()} niveau${levelsBeforeGift() > 1 ? "x" : ""}`;
     show("home");
   }
 
@@ -74,20 +96,24 @@
   let mode = "latin";
 
   function renderMap() {
-    const levels = LEVELS[mode];
-    $("mapTitle").innerHTML = `${mode === "arabic" ? "Lettres arabes" : "Lettres latines"}<small>${levels.length} niveaux · touche n'importe quel niveau</small>`;
+    const levels = RAW[mode];
+    $("mapTitle").innerHTML = `${mode === "arabic" ? "Lettres arabes" : "Lettres latines"}<small>Touche n'importe quel niveau pour y aller</small>`;
     $("mapStars").textContent = totalStars(mode);
+    const left = levelsBeforeGift();
+    $("mapGift").textContent = `♥ ${left}`;
+    $("mapGift").setAttribute("aria-label", `Prochaine photo dans ${left} niveaux`);
     const scroll = $("mapScroll");
     scroll.innerHTML = "";
     const front = frontier(mode);
-    const STEP = 100;
-    for (let ch = CHAPTERS.length - 1; ch >= 0; ch--) {
+    const STEP = 96;
+    const nChapters = Math.ceil(levels.length / PER_CHAPTER);
+    for (let ch = nChapters - 1; ch >= 0; ch--) {
       const first = ch * PER_CHAPTER + 1;
-      if (first > levels.length) continue;
       const count = Math.min(PER_CHAPTER, levels.length - first + 1);
+      const [name, sub] = CHAPTERS[Math.min(ch, CHAPTERS.length - 1)];
       const sec = document.createElement("div");
       sec.className = "chapter";
-      sec.innerHTML = `<div class="chapter-head"><b>${CHAPTERS[ch].name}</b><span>Chapitre ${ch + 1} · ${CHAPTERS[ch].sub}</span></div>`;
+      sec.innerHTML = `<div class="chapter-head"><b>${name}</b><span>Étape ${ch + 1} · ${sub} · niveaux ${first} à ${first + count - 1}</span></div>`;
       const path = document.createElement("div");
       path.className = "path";
       path.style.height = `${count * STEP}px`;
@@ -101,14 +127,14 @@
         const b = document.createElement("button");
         b.className = "node" + (stars ? " done" : "") + (n === front ? " current" : "");
         b.style.left = `${x}%`;
-        b.style.top = `${y - (n === front ? 38 : 32)}px`;
+        b.style.top = `${y - (n === front ? 36 : 30)}px`;
         b.setAttribute("aria-label", `Niveau ${n}${stars ? `, ${stars} étoiles` : ""}`);
-        b.innerHTML = `${n}${stars ? `<span class="stars">${"★".repeat(stars)}${"☆".repeat(3 - stars)}</span>` : ""}${n > front ? '<span class="lock" aria-hidden="true">⇡</span>' : ""}`;
+        b.innerHTML = `${n}${stars ? `<span class="stars">${"★".repeat(stars)}${"☆".repeat(3 - stars)}</span>` : ""}`;
         b.onclick = () => (n > front ? askSkip(n) : startLevel(n));
         if (n === front) b.id = "frontNode";
         path.appendChild(b);
       }
-      const d = pts.map((p, i) => (i ? `L ${p[0]} ${p[1]}` : `M ${p[0]} ${p[1]}`)).join(" ");
+      const d = pts.map((p, i) => `${i ? "L" : "M"} ${p[0]} ${p[1]}`).join(" ");
       path.insertAdjacentHTML("afterbegin",
         `<svg viewBox="0 0 100 ${count * STEP}" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" fill="none" stroke="var(--sea-soft)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/><path d="${d}" fill="none" stroke="var(--surface)" stroke-width="3" stroke-dasharray="2 10" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>`);
       sec.appendChild(path);
@@ -128,30 +154,46 @@
     $("skipYes").onclick = () => { closeSheet(); startLevel(n); };
   }
 
+  // ---------- Niveau : la grille se reconstruit à partir des mots ----------
+  function expand(lv) {
+    const s = lv.s;
+    const cells = Array.from({ length: s }, () => Array.from({ length: s }, () => ({ t: "B" })));
+    const words = lv.w.map(([word, clue, latin, ar, r, c, d]) => ({ word, chars: [...word], clue, latin, ar, r, c, dir: d ? "down" : "right" }));
+    words.forEach((w) => {
+      const [cr, cc] = w.dir === "right" ? [w.r, w.c - 1] : [w.r - 1, w.c];
+      if (cells[cr][cc].t !== "C") cells[cr][cc] = { t: "C", clues: {} };
+      cells[cr][cc].clues[w.dir] = w.clue;
+      w.chars.forEach((ch, i) => {
+        const [r, c] = w.dir === "right" ? [w.r, w.c + i] : [w.r + i, w.c];
+        cells[r][c] = { t: "L", a: ch };
+      });
+    });
+    return { n: lv.n, size: s, cells, words };
+  }
+
   // ---------- Jeu ----------
-  let L = null;          // niveau courant
+  let L = null;
   let rtl = false;
-  let entries = {};      // "r,c" -> lettre saisie
+  let entries = {};
   let revealed = new Set();
-  let sel = null;        // { r, c, dir }
+  let sel = null;
   let hintsLeft = 3, hintsUsed = 0, wrongChecks = 0;
   const key = (r, c) => `${r},${c}`;
   const cellEl = {};
 
   function wordAt(r, c, d) {
     return L.words.find((w) => w.dir === d &&
-      (d === "right" ? w.r === r && c >= w.c && c < w.c + w.word.length
-                     : w.c === c && r >= w.r && r < w.r + w.word.length));
+      (d === "right" ? w.r === r && c >= w.c && c < w.c + w.chars.length
+                     : w.c === c && r >= w.r && r < w.r + w.chars.length));
   }
-  const cellsOf = (w) => [...w.word].map((_, i) => (w.dir === "right" ? [w.r, w.c + i] : [w.r + i, w.c]));
+  const cellsOf = (w) => w.chars.map((_, i) => (w.dir === "right" ? [w.r, w.c + i] : [w.r + i, w.c]));
   const answer = (r, c) => L.cells[r][c].a;
 
   function startLevel(n) {
-    L = LEVELS[mode][n - 1];
+    L = expand(RAW[mode][n - 1]);
     rtl = mode === "arabic";
     entries = {}; revealed = new Set(); hintsLeft = 3; hintsUsed = 0; wrongChecks = 0;
-    const ch = CHAPTERS[Math.floor((n - 1) / PER_CHAPTER)];
-    $("gameTitle").innerHTML = `Niveau ${n}<small>${ch ? ch.name : ""} · ${L.words.length} mots</small>`;
+    $("gameTitle").innerHTML = `Niveau ${n}<small>${chapterOf(n)[0]} · ${L.words.length} mots</small>`;
     $("xpPill").textContent = `${store.xp} XP`;
     $("btnHint").disabled = true;
     $("hintCount").textContent = hintsLeft;
@@ -159,8 +201,7 @@
     renderBoard();
     show("game");
     fitBoard();
-    const w = L.words[0];
-    select(w.r, w.c, w.dir);
+    select(L.words[0].r, L.words[0].c, L.words[0].dir);
   }
 
   function renderBoard() {
@@ -213,15 +254,16 @@
     document.querySelectorAll(".clue.active").forEach((el) => el.classList.remove("active"));
     cellsOf(w).forEach(([rr, cc]) => cellEl[key(rr, cc)].classList.add("hl"));
     cellEl[key(r, c)].classList.add("sel");
-    const cr = w.dir === "right" ? w.r : w.r - 1, cc = w.dir === "right" ? w.c - 1 : w.c;
+    const [cr, cc] = w.dir === "right" ? [w.r, w.c - 1] : [w.r - 1, w.c];
     const clueEl = document.querySelector(`.clue[data-r="${cr}"][data-c="${cc}"][data-d="${w.dir}"]`);
     if (clueEl) clueEl.classList.add("active");
+    $("cluebar").classList.remove("alert");
     $("clueArrow").textContent = w.dir === "down" ? "▾" : rtl ? "◂" : "▸";
     $("clueText").textContent = w.clue;
-    $("clueLen").textContent = `${w.word.length} lettres`;
+    $("clueLen").textContent = `${w.chars.length} lettres`;
   }
 
-  function currentWord() { return sel && wordAt(sel.r, sel.c, sel.dir); }
+  const currentWord = () => sel && wordAt(sel.r, sel.c, sel.dir);
 
   function step(delta) {
     const w = currentWord();
@@ -231,35 +273,29 @@
     if (j >= 0 && j < cells.length) select(cells[j][0], cells[j][1], w.dir);
   }
 
+  function setEntry(r, c, v) {
+    const k = key(r, c);
+    if (revealed.has(k)) return;
+    if (v) entries[k] = v; else delete entries[k];
+    cellEl[k].classList.remove("bad", "good");
+    paintCell(r, c);
+  }
+
   function type(ch) {
-    if (!sel) return;
+    if (!sel || !$("scrim").hidden) return;
     if (ch === "⌫") return erase();
-    const k = key(sel.r, sel.c);
-    if (!revealed.has(k)) {
-      entries[k] = ch;
-      cellEl[k].classList.remove("bad", "good");
-      paintCell(sel.r, sel.c);
-    }
+    setEntry(sel.r, sel.c, ch);
     step(1);
   }
 
   function erase() {
     const k = key(sel.r, sel.c);
-    if (entries[k] && !revealed.has(k)) {
-      delete entries[k];
-      cellEl[k].classList.remove("bad", "good");
-      paintCell(sel.r, sel.c);
-      return;
-    }
+    if (entries[k] && !revealed.has(k)) return setEntry(sel.r, sel.c, "");
     step(-1);
-    const k2 = key(sel.r, sel.c);
-    if (!revealed.has(k2)) {
-      delete entries[k2];
-      cellEl[k2].classList.remove("bad", "good");
-      paintCell(sel.r, sel.c);
-    }
+    setEntry(sel.r, sel.c, "");
   }
 
+  // Clavier à l'écran : réagit dès que le doigt touche (pointerdown), sans délai ni zoom sur iPhone.
   function renderKeyboard() {
     const kb = $("kb");
     kb.className = `kb ${rtl ? "ar" : ""}`;
@@ -272,15 +308,38 @@
         const b = document.createElement("button");
         b.className = "key" + (ch === "⌫" ? " wide" : "");
         b.textContent = ch;
+        b.dataset.ch = ch;
         b.setAttribute("aria-label", ch === "⌫" ? "Effacer la lettre" : ch);
-        b.onclick = () => type(ch);
         div.appendChild(b);
       });
       kb.appendChild(div);
     });
   }
+  let repeatTimer = null;
+  const release = () => {
+    clearTimeout(repeatTimer); clearInterval(repeatTimer); repeatTimer = null;
+    document.querySelectorAll(".key.down").forEach((k) => k.classList.remove("down"));
+  };
+  $("kb").addEventListener("pointerdown", (e) => {
+    const k = e.target.closest(".key");
+    if (!k) return;
+    e.preventDefault();
+    release();
+    k.classList.add("down");
+    type(k.dataset.ch);
+    if (k.dataset.ch === "⌫") repeatTimer = setTimeout(() => { repeatTimer = setInterval(() => type("⌫"), 90); }, 450);
+  });
+  ["pointerup", "pointercancel", "pointerleave"].forEach((ev) => $("kb").addEventListener(ev, release));
+  // Une touche n'agit qu'au toucher : le « click » qui suit sur iPhone est ignoré pour ne pas taper deux fois.
+  $("kb").addEventListener("click", (e) => e.preventDefault());
+  $("kb").addEventListener("keydown", (e) => {
+    const k = e.target.closest(".key");
+    if (k && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); e.stopPropagation(); type(k.dataset.ch); }
+  });
+  $("kb").addEventListener("contextmenu", (e) => e.preventDefault());
 
   function flash(msg) {
+    $("cluebar").classList.add("alert");
     $("clueText").textContent = msg;
     $("clueLen").textContent = "";
   }
@@ -301,7 +360,7 @@
     const parts = [];
     if (wrong) parts.push(`${wrong} lettre${wrong > 1 ? "s" : ""} fausse${wrong > 1 ? "s" : ""}`);
     if (empty) parts.push(`${empty} case${empty > 1 ? "s" : ""} vide${empty > 1 ? "s" : ""}`);
-    flash(`Pas encore : ${parts.join(", ")}. Un indice ?`);
+    flash(`Pas encore : ${parts.join(", ")}.${hintsLeft ? " Un indice ?" : ""}`);
   }
 
   function hint() {
@@ -331,16 +390,21 @@
       return;
     }
     clearTimeout(clearTimer); delete b.dataset.armed; b.textContent = "Effacer";
-    Object.keys(entries).forEach((k) => { if (!revealed.has(k)) delete entries[k]; });
-    L.cells.forEach((row, r) => row.forEach((cell, c) => {
-      if (cell.t === "L") { cellEl[key(r, c)].classList.remove("bad", "good"); paintCell(r, c); }
-    }));
+    L.cells.forEach((row, r) => row.forEach((cell, c) => { if (cell.t === "L") setEntry(r, c, ""); }));
+  }
+
+  // ---------- Victoire, récompense et cadeau ----------
+  function photoHtml(i, cls = "") {
+    const p = PHOTOS[i];
+    return p ? `<img class="${cls}" src="${p.src}" alt="${p.caption ? p.caption.replace(/"/g, "&quot;") : `Photo ${i + 1}`}">`
+             : `<div class="placeholder">${i + 1}</div>`;
   }
 
   function win() {
     const n = L.n;
     const stars = hintsUsed === 0 && wrongChecks === 0 ? 3 : hintsUsed <= 1 && wrongChecks <= 2 ? 2 : 1;
     const prev = starsOf(mode)[n] || 0;
+    const giftsBefore = unlockedGifts();
     let gained = 0;
     if (stars > prev) {
       gained = (stars - prev) * 10 + (prev ? 0 : L.words.length * 2);
@@ -352,22 +416,32 @@
       store.streak.last = today();
     }
     save();
+    const newGift = unlockedGifts() > giftsBefore ? unlockedGifts() - 1 : -1;
     L.cells.forEach((row, r) => row.forEach((cell, c) => { if (cell.t === "L") cellEl[key(r, c)].classList.add("good"); }));
 
     const p = PROVERBS[(n - 1) % PROVERBS.length];
-    const chapterEnd = n % PER_CHAPTER === 0 && CHAPTERS[n / PER_CHAPTER - 1];
+    const chapterEnd = n % PER_CHAPTER === 0;
     const recap = L.words.map((w) => rtl
       ? `<span class="chip"><b lang="ar">${w.ar}</b> · ${w.latin} · ${w.clue}</span>`
       : `<span class="chip"><b>${w.latin}</b> · ${w.clue}</span>`).join("");
-    const last = n >= LEVELS[mode].length;
+    const left = levelsBeforeGift();
+    const giftBlock = newGift >= 0
+      ? `<div class="giftcard"><span class="kicker">Cadeau débloqué · photo ${newGift + 1} sur ${GIFT_TOTAL}</span>
+           <button id="openGift" aria-label="Voir la photo en grand">${photoHtml(newGift)}</button>
+           ${PHOTOS[newGift] && PHOTOS[newGift].caption ? `<span class="caption">${PHOTOS[newGift].caption}</span>` : ""}</div>`
+      : unlockedGifts() < GIFT_TOTAL
+        ? `<div class="next-gift"><span class="dots">${[0, 1, 2].map((i) => `<i class="${i < GIFT_EVERY - left ? "on" : ""}"></i>`).join("")}</span>Prochaine photo dans ${left} niveau${left > 1 ? "x" : ""}</div>`
+        : "";
+    const last = n >= RAW[mode].length;
     setTimeout(() => {
       openSheet(`
         <h3>${rtl ? "صحة !" : "Sa7a !"}</h3>
-        <p class="sub">${chapterEnd ? `Chapitre ${chapterEnd.name} terminé` : `Niveau ${n} réussi`}</p>
+        <p class="sub">${chapterEnd ? `Étape ${chapterOf(n)[0]} terminée` : `Niveau ${n} réussi`}</p>
         <div class="bigstars" aria-label="${stars} étoiles sur 3">${[1, 2, 3].map((i) => `<span class="${i <= stars ? "on" : ""}">★</span>`).join("")}</div>
         <p class="xp">${gained ? `+${gained} XP` : "Tu avais déjà fait mieux sur ce niveau"}</p>
+        ${giftBlock}
         <div class="reward">
-          <span class="kicker">Ta récompense · un proverbe</span>
+          <span class="kicker">Un proverbe pour la route</span>
           <span class="dz">${p[0]}</span>
           <span class="dz" dir="rtl" lang="ar">${p[1]}</span>
           <span class="fr">${p[2]}</span>
@@ -377,32 +451,81 @@
           <button class="btn" id="toMap">Carte</button>
           <button class="btn primary" id="toNext">${last ? "Revoir la carte" : `Niveau ${n + 1}`}</button>
         </div>`);
+      if (newGift >= 0) $("openGift").onclick = () => openLightbox(newGift);
       $("toMap").onclick = () => { closeSheet(); renderMap(); };
       $("toNext").onclick = () => { closeSheet(); last ? renderMap() : startLevel(n + 1); };
-      confetti();
+      confetti(newGift >= 0);
     }, 450);
   }
 
+  // ---------- Galerie ----------
+  function renderGallery() {
+    const g = unlockedGifts();
+    $("gallerySub").textContent = `${g} photo${g > 1 ? "s" : ""} débloquée${g > 1 ? "s" : ""} sur ${GIFT_TOTAL}`;
+    $("galleryGrid").innerHTML = '<div class="thumbs"></div>';
+    const grid = $("galleryGrid").firstChild;
+    for (let i = 0; i < GIFT_TOTAL; i++) {
+      const b = document.createElement("button");
+      if (i < g) {
+        const p = PHOTOS[i];
+        b.className = "thumb";
+        b.innerHTML = p ? `<img src="${p.thumb || p.src}" alt="Photo ${i + 1}" loading="lazy">` : `<span class="ph">${i + 1}</span>`;
+        b.setAttribute("aria-label", `Voir la photo ${i + 1}`);
+        b.onclick = () => openLightbox(i);
+      } else {
+        b.className = "thumb locked";
+        b.disabled = true;
+        b.innerHTML = `<span class="num">${i + 1}</span>`;
+        b.setAttribute("aria-label", `Photo ${i + 1}, pas encore débloquée`);
+      }
+      grid.appendChild(b);
+    }
+    show("gallery");
+  }
+
+  let lbIndex = 0;
+  function openLightbox(i) {
+    lbIndex = i;
+    const g = unlockedGifts();
+    $("lbImg").innerHTML = photoHtml(i);
+    $("lbCount").textContent = `${i + 1} / ${GIFT_TOTAL}`;
+    $("lbCap").textContent = (PHOTOS[i] && PHOTOS[i].caption) || "";
+    $("lbPrev").disabled = i === 0;
+    $("lbNext").disabled = i >= g - 1;
+    $("lightbox").hidden = false;
+  }
+  $("lbClose").onclick = () => { $("lightbox").hidden = true; };
+  $("lbPrev").onclick = () => { if (lbIndex > 0) openLightbox(lbIndex - 1); };
+  $("lbNext").onclick = () => { if (lbIndex < unlockedGifts() - 1) openLightbox(lbIndex + 1); };
+  let touchX = null;
+  $("lightbox").addEventListener("touchstart", (e) => { touchX = e.touches[0].clientX; }, { passive: true });
+  $("lightbox").addEventListener("touchend", (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    touchX = null;
+    if (dx > 50) $("lbPrev").click(); else if (dx < -50) $("lbNext").click();
+  });
+
   // ---------- Feuille du bas ----------
-  function openSheet(html) { $("sheet").innerHTML = html; $("scrim").hidden = false; }
+  function openSheet(html) { $("sheet").innerHTML = html; $("scrim").hidden = false; $("sheet").scrollTop = 0; }
   function closeSheet() { $("scrim").hidden = true; }
   $("scrim").addEventListener("click", (e) => { if (e.target === $("scrim")) closeSheet(); });
 
   // ---------- Confettis ----------
-  function confetti() {
+  function confetti(hearts) {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const cv = $("confetti");
     cv.hidden = false;
     const ctx = cv.getContext("2d");
     const dpr = window.devicePixelRatio || 1;
     cv.width = innerWidth * dpr; cv.height = innerHeight * dpr;
-    ctx.scale(dpr, dpr);
-    const colors = ["#2f6fb0", "#eeac35", "#3fa77c", "#d9594a", "#8fb8e6"];
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const colors = hearts ? ["#e98aa0", "#f2b33d", "#f6c3cf", "#3d7fd9"] : ["#3d7fd9", "#f2b33d", "#2f9e70", "#dc5a49", "#9cc2f0"];
     const parts = Array.from({ length: 140 }, () => ({
       x: innerWidth / 2 + (Math.random() - .5) * 80, y: innerHeight * .35,
       vx: (Math.random() - .5) * 11, vy: -Math.random() * 12 - 4,
-      s: 5 + Math.random() * 6, a: Math.random() * 6, va: (Math.random() - .5) * .3,
-      col: colors[(Math.random() * colors.length) | 0],
+      s: 6 + Math.random() * 6, a: Math.random() * 6, va: (Math.random() - .5) * .3,
+      col: colors[(Math.random() * colors.length) | 0], heart: hearts && Math.random() < .5,
     }));
     const t0 = performance.now();
     (function frame(t) {
@@ -410,7 +533,9 @@
       parts.forEach((p) => {
         p.vy += .32; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.a += p.va;
         ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a); ctx.fillStyle = p.col;
-        ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); ctx.restore();
+        if (p.heart) { ctx.font = `${p.s * 2}px sans-serif`; ctx.fillText("♥", -p.s / 2, p.s / 2); }
+        else ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2);
+        ctx.restore();
       });
       if (t - t0 < 2600) requestAnimationFrame(frame); else { ctx.clearRect(0, 0, innerWidth, innerHeight); cv.hidden = true; }
     })(t0);
@@ -420,15 +545,21 @@
   function fitBoard() {
     if (!L || $("game").hidden) return;
     const wrap = $("boardwrap");
-    const side = Math.min(wrap.clientWidth, wrap.clientHeight - 20, 480);
+    const side = Math.min(wrap.clientWidth, wrap.clientHeight - 16, 480);
     const cs = Math.max(22, Math.floor((side - 4 - (L.size - 1) * 2) / L.size));
     $("board").style.setProperty("--cs", `${cs}px`);
   }
   if (window.ResizeObserver) new ResizeObserver(fitBoard).observe($("boardwrap"));
   window.addEventListener("resize", fitBoard);
 
-  // ---------- Clavier physique ----------
+  // ---------- Clavier physique (ordinateur, clavier Bluetooth) ----------
   document.addEventListener("keydown", (e) => {
+    if (!$("lightbox").hidden) {
+      if (e.key === "Escape") $("lbClose").click();
+      if (e.key === "ArrowLeft") $("lbPrev").click();
+      if (e.key === "ArrowRight") $("lbNext").click();
+      return;
+    }
     if ($("game").hidden || !$("scrim").hidden || !sel) return;
     if (e.key === "Backspace") { erase(); e.preventDefault(); return; }
     const arrows = { ArrowRight: rtl ? -1 : 1, ArrowLeft: rtl ? 1 : -1, ArrowDown: 1, ArrowUp: -1 };
@@ -443,12 +574,15 @@
   });
 
   // ---------- Branchements ----------
-  document.querySelectorAll(".mode").forEach((b) => { b.onclick = () => { mode = b.dataset.mode; renderMap(); }; });
+  document.querySelectorAll(".card[data-mode]").forEach((b) => { b.onclick = () => { mode = b.dataset.mode; renderMap(); }; });
+  $("openGallery").onclick = renderGallery;
   $("mapBack").onclick = renderHome;
+  $("galleryBack").onclick = renderHome;
   $("gameBack").onclick = renderMap;
   $("btnCheck").onclick = check;
   $("btnHint").onclick = hint;
   $("btnClear").onclick = clearGrid;
 
+  applyTheme();
   renderHome();
 })();

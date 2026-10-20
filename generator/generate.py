@@ -4,7 +4,7 @@ Chaque mot est précédé d'une case définition : à gauche pour un mot horizon
 au-dessus pour un mot vertical (▾). Une case définition peut porter deux définitions.
 
 Usage : python3 generator/generate.py [--seed N]
-Produit web/levels.js : 30 niveaux en lettres latines, 30 en lettres arabes.
+Produit web/levels.js : 252 niveaux en lettres latines, 252 en lettres arabes.
 """
 import argparse
 import json
@@ -13,24 +13,25 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-N_LEVELS = 30
+N_LEVELS = 252  # par clavier : 2 × 252 = 504 niveaux = 168 cadeaux (un tous les 3 niveaux)
 MODES = {"latin": "word", "arabic": "ar"}  # mode -> champ de réponse dans words.json
 
 
 def level_config(n):
-    """Niveau n (1..30) -> (taille de grille, poids par palier). Monte de 5×5 à 10×10."""
-    size = 5 + (n - 1) // 5
-    if n <= 6:
-        w = {1: 1.0}
-    elif n <= 12:
-        w = {1: 1.0, 2: 0.35}
-    elif n <= 18:
-        w = {1: 0.5, 2: 1.0}
-    elif n <= 24:
-        w = {1: 0.3, 2: 1.0, 3: 0.5}
-    else:
-        w = {1: 0.15, 2: 0.6, 3: 1.0}
+    """Niveau n (1..252) -> (taille de grille, poids par palier).
+
+    La grille grandit de 5×5 à 10×10 sur les 100 premiers niveaux, puis les mots rares
+    prennent de plus en plus de place jusqu'au bout.
+    """
+    size = 5 if n <= 10 else 6 if n <= 25 else 7 if n <= 45 else 8 if n <= 70 else 9 if n <= 100 else 10
+    t = (n - 1) / (N_LEVELS - 1)
+    w = {1: max(0.15, 1 - 1.3 * t)}
+    if n > 8:
+        w[2] = min(1.0, 0.25 + 2 * t)
+    if n > 40:
+        w[3] = min(1.0, (n - 40) / 120)
     return size, w
+
 
 DIRS = {"right": (0, 1), "down": (1, 0)}
 PERP = {"right": (1, 0), "down": (0, 1)}
@@ -170,7 +171,7 @@ def build(words, rows, cols, weights, rng):
     return g
 
 
-def generate(words, size, weights, rng, attempts=40):
+def generate(words, size, weights, rng, attempts=25):
     best, best_score = None, -1
     for _ in range(attempts):
         g = build(words, size, size, weights, rng)
@@ -198,12 +199,12 @@ def main():
         for n in range(1, N_LEVELS + 1):
             size, weights = level_config(n)
             g = generate(words, size, weights, rng)
-            levels.append({
-                "n": n, "size": size, "cells": g.export(),
-                "words": [{"word": w["word"], "clue": w["clue"], "latin": w["latin"], "ar": w["ar"],
-                           "r": w["r"], "c": w["c"], "dir": w["dir"]} for w in g.words],
-            })
-            print(f"{mode} {n:>2}: {size}×{size}, {len(g.words)} mots")
+            # Format compact : la grille se déduit des mots (case définition juste avant chaque mot).
+            levels.append({"n": n, "s": size, "w": [
+                [w["word"], w["clue"], w["latin"], w["ar"], w["r"], w["c"], 0 if w["dir"] == "right" else 1]
+                for w in g.words]})
+            if n % 25 == 1:
+                print(f"{mode} {n:>3}: {size}×{size}, {len(g.words)} mots", flush=True)
         out[mode] = levels
     dest = ROOT / "web" / "levels.js"
     dest.write_text("window.LEVELS = " + json.dumps(out, ensure_ascii=False, separators=(",", ":")) + ";\n", encoding="utf-8")
