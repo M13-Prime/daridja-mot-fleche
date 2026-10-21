@@ -5,6 +5,7 @@
 
 Usage : python3 build.py
 """
+import hashlib
 import json
 import math
 import re
@@ -58,7 +59,12 @@ def main():
     if SITE.exists():
         shutil.rmtree(SITE)
     SITE.mkdir(parents=True)
-    (SITE / "index.html").write_text(site_index(), encoding="utf-8")
+    page = site_index()
+    (SITE / "index.html").write_text(page, encoding="utf-8")
+    # Service worker (hors ligne) : la version change dès que la page change.
+    version = hashlib.sha256(page.encode("utf-8")).hexdigest()[:12]
+    sw = (WEB / "sw.js").read_text(encoding="utf-8").replace("__VERSION__", version)
+    (SITE / "sw.js").write_text(sw, encoding="utf-8")
     # Icônes déjà dessinées dans web/ (pour les refaire : python3 -c "import build; build.icon(512).save('web/icon-512.png')")
     for name in ("icon-180.png", "icon-512.png"):
         shutil.copy(WEB / name, SITE / name)

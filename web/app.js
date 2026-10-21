@@ -1,5 +1,10 @@
 (() => {
   "use strict";
+  // Hors ligne : uniquement sur le vrai site (pas dans l'aperçu ni en local).
+  if ("serviceWorker" in navigator && location.protocol === "https:" &&
+      document.querySelector('link[rel="manifest"]')) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  }
   const RAW = window.LEVELS || { latin: [], arabic: [] };
   const PHOTOS = Array.isArray(window.PHOTOS) ? window.PHOTOS : [];
   const $ = (id) => document.getElementById(id);
